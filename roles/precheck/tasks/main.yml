@@ -1,0 +1,85 @@
+################################################################################
+# File: roles/precheck/tasks/main.yml
+# Purpose: Main task orchestration for precheck role
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Main precheck orchestration - delegates to specific check modules
+
+- name: "Precheck | Display role banner"
+  debug:
+    msg:
+      - "=========================================="
+      - "Role: Precheck - System Readiness"
+      - "=========================================="
+      - "Host: {{ inventory_hostname }}"
+      - "Timestamp: {{ ansible_date_time.iso8601 }}"
+      - "=========================================="
+  tags:
+    - precheck
+    - always
+
+- name: "Precheck | Initialize check results"
+  set_fact:
+    precheck_results:
+      system: {}
+      services: {}
+      network: {}
+      security: {}
+      packages: {}
+      status: "running"
+      errors: []
+      warnings: []
+  tags:
+    - precheck
+    - always
+
+- name: "Precheck | Execute system checks"
+  include_tasks: system_checks.yml
+  tags:
+    - precheck
+    - system_checks
+
+- name: "Precheck | Execute service checks"
+  include_tasks: service_checks.yml
+  tags:
+    - precheck
+    - service_checks
+
+- name: "Precheck | Display precheck summary"
+  debug:
+    msg:
+      - "=========================================="
+      - "Precheck Summary"
+      - "=========================================="
+      - "System Checks: {{ precheck_results.system.status | default('UNKNOWN') }}"
+      - "Service Checks: {{ precheck_results.services.status | default('UNKNOWN') }}"
+      - "Errors: {{ precheck_results.errors | length }}"
+      - "Warnings: {{ precheck_results.warnings | length }}"
+      - "=========================================="
+  tags:
+    - precheck
+    - always
+
+- name: "Precheck | Fail on errors if configured"
+  fail:
+    msg: "Precheck failed with {{ precheck_results.errors | length }} error(s). Review logs above."
+  when:
+    - precheck_fail_on_error | bool
+    - precheck_results.errors | length > 0
+  tags:
+    - precheck
+    - always
+
+- name: "Precheck | Mark precheck as complete"
+  set_fact:
+    precheck_results: "{{ precheck_results | combine({'status': 'PASSED'}) }}"
+  tags:
+    - precheck
+    - always
+
+################################################################################
+# END OF FILE: roles/precheck/tasks/main.yml
+################################################################################

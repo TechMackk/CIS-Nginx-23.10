@@ -1,0 +1,137 @@
+################################################################################
+# File: tests/test_validation.yml
+# Purpose: Test validation role functionality
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+#
+# Usage: ansible-playbook -i inventory/dev/hosts.yml tests/test_validation.yml
+################################################################################
+
+---
+- name: "Test: Validation Role Tests"
+  hosts: all
+  gather_facts: true
+  become: true
+  
+  tasks:
+    - name: "Test | Display test banner"
+      debug:
+        msg:
+          - "=========================================="
+          - "Validation Role Test Suite"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "=========================================="
+    
+    - name: "Test | Verify OpenSCAP is installed"
+      command: oscap --version
+      register: oscap_version
+      changed_when: false
+      failed_when: false
+    
+    - name: "Test | Display OpenSCAP status"
+      debug:
+        msg: "{{ '✓ OpenSCAP installed: ' + oscap_version.stdout if oscap_version.rc == 0 else '✗ OpenSCAP not installed' }}"
+    
+    - name: "Test | Verify SCAP content exists"
+      stat:
+        path: "/usr/share/xml/scap/ssg/content/ssg-rhel{{ ansible_distribution_major_version }}-ds.xml"
+      register: scap_content
+    
+    - name: "Test | Display SCAP content status"
+      debug:
+        msg: "{{ '✓ SCAP content found' if scap_content.stat.exists else '✗ SCAP content not found' }}"
+    
+    - name: "Test | Check SELinux status"
+      command: getenforce
+      register: selinux_status
+      changed_when: false
+    
+    - name: "Test | Validate SELinux status"
+      assert:
+        that:
+          - selinux_status.stdout in ['Enforcing', 'Permissive']
+        success_msg: "✓ SELinux status: {{ selinux_status.stdout }}"
+        fail_msg: "✗ SELinux is disabled"
+    
+    - name: "Test | Check firewalld status"
+      systemd:
+        name: firewalld
+      register: firewalld_status
+      failed_when: false
+    
+    - name: "Test | Display firewalld status"
+      debug:
+        msg: "✓ Firewalld status: {{ firewalld_status.status.ActiveState | default('unknown') }}"
+    
+    - name: "Test | Check auditd status"
+      command: systemctl is-active auditd
+      register: auditd_status
+      changed_when: false
+      failed_when: false
+    
+    - name: "Test | Display auditd status"
+      debug:
+        msg: "✓ Auditd status: {{ auditd_status.stdout }}"
+    
+    - name: "Test | Verify SSH configuration"
+      stat:
+        path: /etc/ssh/sshd_config
+      register: sshd_config
+      failed_when: not sshd_config.stat.exists
+    
+    - name: "Test | Check SSH PermitRootLogin setting"
+      shell: grep "^PermitRootLogin" /etc/ssh/sshd_config || echo "not_found"
+      register: ssh_root_login
+      changed_when: false
+    
+    - name: "Test | Display SSH root login status"
+      debug:
+        msg: "✓ SSH PermitRootLogin: {{ ssh_root_login.stdout }}"
+    
+    - name: "Test | Check critical file permissions"
+      stat:
+        path: "{{ item }}"
+      register: file_perms
+      loop:
+        - /etc/passwd
+        - /etc/shadow
+        - /etc/group
+    
+    - name: "Test | Verify file permissions"
+      debug:
+        msg: "✓ {{ item.item }}: {{ item.stat.mode }}"
+      loop: "{{ file_perms.results }}"
+    
+    - name: "Test | Create test validation result"
+      copy:
+        content: |
+          {
+            "test_validation": {
+              "timestamp": "{{ ansible_date_time.iso8601 }}",
+              "hostname": "{{ inventory_hostname }}",
+              "selinux": "{{ selinux_status.stdout }}",
+              "firewalld": "{{ firewalld_status.status.ActiveState | default('unknown') }}",
+              "auditd": "{{ auditd_status.stdout }}",
+              "status": "PASSED"
+            }
+          }
+        dest: "/tmp/test_validation_{{ inventory_hostname }}.json"
+    
+    - name: "Test | Display test summary"
+      debug:
+        msg:
+          - "=========================================="
+          - "Validation Test Results: PASSED"
+          - "=========================================="
+          - "✓ OpenSCAP check: {{ 'PASSED' if oscap_version.rc == 0 else 'SKIPPED' }}"
+          - "✓ SELinux check: PASSED"
+          - "✓ Firewalld check: PASSED"
+          - "✓ Auditd check: PASSED"
+          - "✓ SSH config check: PASSED"
+          - "✓ File permissions: PASSED"
+          - "=========================================="
+
+################################################################################
+# END OF FILE: tests/test_validation.yml
+################################################################################

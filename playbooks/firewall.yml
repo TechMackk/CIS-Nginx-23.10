@@ -1,0 +1,151 @@
+################################################################################
+# File: playbooks/firewall.yml
+# Purpose: Configure firewalld rules and network security
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+#
+# Description:
+#   Implements firewall hardening:
+#   - Configure firewalld zones
+#   - Define allowed services and ports
+#   - Implement source IP restrictions
+#   - Enable logging for denied packets
+#
+# Usage:
+#   ansible-playbook -i inventory/dev/hosts.yml playbooks/firewall.yml
+################################################################################
+
+---
+- name: "Configure: Firewall Rules and Network Security"
+  hosts: all
+  gather_facts: true
+  become: true
+  
+  vars:
+    firewall_timestamp: "{{ ansible_date_time.iso8601 }}"
+
+  tags:
+    - firewall
+    - network
+    - security
+
+  pre_tasks:
+    - name: "Display firewall configuration banner"
+      debug:
+        msg:
+          - "=========================================="
+          - "Configure: Firewall Rules"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "Firewall Enabled: {{ firewall_enabled | default(true) }}"
+          - "Default Zone: {{ firewall_default_zone | default('public') }}"
+          - "Timestamp: {{ firewall_timestamp }}"
+          - "=========================================="
+
+    - name: "Verify firewall is enabled"
+      assert:
+        that:
+          - firewall_enabled | default(true) | bool
+        fail_msg: "Firewall is disabled. Set firewall_enabled=true"
+        success_msg: "Firewall enabled. Proceeding..."
+
+  tasks:
+    - name: "Execute firewall role"
+      include_role:
+        name: firewall
+      tags:
+        - firewall
+
+  post_tasks:
+    - name: "Verify firewalld service status"
+      systemd:
+        name: firewalld
+        state: started
+        enabled: true
+      check_mode: yes
+      register: firewalld_check
+
+    - name: "Get active firewall zones"
+      command: firewall-cmd --get-active-zones
+      register: active_zones
+      changed_when: false
+
+    - name: "Get default zone"
+      command: firewall-cmd --get-default-zone
+      register: default_zone
+      changed_when: false
+
+    - name: "Display firewall configuration completion"
+      debug:
+        msg:
+          - "=========================================="
+          - "Firewall Configuration Status: COMPLETE"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "Service Status: {{ 'Running' if firewalld_check is success else 'Check Failed' }}"
+          - "Default Zone: {{ default_zone.stdout }}"
+          - "Active Zones:"
+          - "{{ active_zones.stdout_lines }}"
+          - "Completion Time: {{ ansible_date_time.iso8601 }}"
+          - "=========================================="
+
+    - name: "List allowed services"
+      command: "firewall-cmd --zone={{ firewall_default_zone | default('public') }} --list-services"
+      register: allowed_services
+      changed_when: false
+
+    - name: "List allowed ports"
+      command: "firewall-cmd --zone={{ firewall_default_zone | default('public') }} --list-ports"
+      register: allowed_ports
+      changed_when: false
+
+    - name: "Display allowed services and ports"
+      debug:
+        msg:
+          - "Allowed Services: {{ allowed_services.stdout }}"
+          - "Allowed Ports: {{ allowed_ports.stdout }}"
+
+    - name: "Generate firewall configuration report"
+      copy:
+        content: |
+          {
+            "timestamp": "{{ ansible_date_time.iso8601 }}",
+            "hostname": "{{ inventory_hostname }}",
+            "playbook": "firewall",
+            "firewall_enabled": {{ firewall_enabled | default(true) | to_json }},
+            "default_zone": "{{ default_zone.stdout }}",
+            "allowed_services": "{{ allowed_services.stdout }}",
+            "allowed_ports": "{{ allowed_ports.stdout }}",
+            "status": "COMPLETE"
+          }
+        dest: "/tmp/firewall-config-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.json"
+
+    - name: "Fetch firewall report"
+      fetch:
+        src: "/tmp/firewall-config-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.json"
+        dest: "reports/firewall-config-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.json"
+        flat: yes
+
+  rescue:
+    - name: "Firewall configuration failed"
+      debug:
+        msg:
+          - "=========================================="
+          - "Firewall Configuration Status: FAILED"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "ERROR: Firewall configuration failed"
+          - "System may be unreachable"
+          - "=========================================="
+
+    - name: "Attempt to restore firewall connectivity"
+      command: firewall-cmd --set-default-zone=public
+      ignore_errors: yes
+
+    - name: "Fail playbook"
+      fail:
+        msg: "Firewall configuration failed on {{ inventory_hostname }}"
+
+################################################################################
+# END OF FILE: playbooks/firewall.yml
+################################################################################

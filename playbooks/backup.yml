@@ -1,0 +1,111 @@
+################################################################################
+# File: playbooks/backup.yml
+# Purpose: Backup critical system and application configurations
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+#
+# Description:
+#   Creates timestamped backups of all critical configuration files before
+#   applying CIS hardening. Enables rollback capability if needed.
+#
+# Usage:
+#   ansible-playbook -i inventory/dev/hosts.yml playbooks/backup.yml
+#
+# Backup Location:
+#   {{ backup_root_dir }}/{{ ansible_date_time.epoch }}/
+################################################################################
+
+---
+- name: "Backup: System and Application Configuration"
+  hosts: all
+  gather_facts: true
+  become: true
+  
+  vars:
+    backup_timestamp: "{{ ansible_date_time.epoch }}"
+    backup_destination: "{{ backup_root_dir | default('/backup') }}/{{ backup_timestamp }}"
+    backup_manifest_file: "backup-manifest-{{ inventory_hostname }}-{{ backup_timestamp }}.txt"
+
+  tags:
+    - backup
+
+  pre_tasks:
+    - name: "Display backup banner"
+      debug:
+        msg:
+          - "=========================================="
+          - "Backup: Configuration Files"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "Backup Location: {{ backup_destination }}"
+          - "Timestamp: {{ ansible_date_time.iso8601 }}"
+          - "=========================================="
+
+    - name: "Verify backup is enabled"
+      assert:
+        that:
+          - backup_enabled | default(true) | bool
+        fail_msg: "Backup is disabled. Set backup_enabled=true to proceed."
+        success_msg: "Backup enabled. Proceeding..."
+
+  tasks:
+    - name: "Execute backup role"
+      include_role:
+        name: backup
+      tags:
+        - backup
+
+  post_tasks:
+    - name: "Display backup completion"
+      debug:
+        msg:
+          - "=========================================="
+          - "Backup Status: COMPLETE"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "Backup Path: {{ backup_destination }}"
+          - "Manifest: {{ backup_manifest_file }}"
+          - "=========================================="
+
+    - name: "Verify backup integrity"
+      stat:
+        path: "{{ backup_destination }}"
+      register: backup_dir_stat
+
+    - name: "Assert backup directory exists"
+      assert:
+        that:
+          - backup_dir_stat.stat.exists
+          - backup_dir_stat.stat.isdir
+        fail_msg: "Backup directory not created. Backup may have failed."
+        success_msg: "Backup directory verified successfully."
+
+    - name: "Record backup timestamp for rollback"
+      copy:
+        content: |
+          LAST_BACKUP_TIMESTAMP={{ backup_timestamp }}
+          LAST_BACKUP_PATH={{ backup_destination }}
+          BACKUP_DATE={{ ansible_date_time.iso8601 }}
+          BACKUP_HOST={{ inventory_hostname }}
+        dest: "{{ backup_root_dir }}/LAST_BACKUP"
+        mode: '0644'
+
+  rescue:
+    - name: "Backup failed"
+      debug:
+        msg:
+          - "=========================================="
+          - "Backup Status: FAILED"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "ERROR: Backup process failed"
+          - "Hardening will be aborted"
+          - "=========================================="
+
+    - name: "Fail playbook on backup failure"
+      fail:
+        msg: "Backup failed on {{ inventory_hostname }}. Cannot proceed with hardening without backup."
+
+################################################################################
+# END OF FILE: playbooks/backup.yml
+################################################################################

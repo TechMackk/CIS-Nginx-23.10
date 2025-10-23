@@ -1,0 +1,146 @@
+################################################################################
+# File: playbooks/ssl_tls.yml
+# Purpose: Configure SSL/TLS certificates and encryption settings
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+#
+# Description:
+#   Implements SSL/TLS best practices:
+#   - Generate or deploy certificates
+#   - Configure strong cipher suites
+#   - Enable TLS 1.2/1.3 only
+#   - Configure OCSP stapling
+#   - Generate DH parameters
+#
+# Usage:
+#   ansible-playbook -i inventory/dev/hosts.yml playbooks/ssl_tls.yml
+################################################################################
+
+---
+- name: "Configure: SSL/TLS Certificates and Encryption"
+  hosts: webservers
+  gather_facts: true
+  become: true
+  
+  vars:
+    ssl_timestamp: "{{ ansible_date_time.iso8601 }}"
+
+  tags:
+    - ssl
+    - tls
+    - certificates
+
+  pre_tasks:
+    - name: "Display SSL/TLS configuration banner"
+      debug:
+        msg:
+          - "=========================================="
+          - "Configure: SSL/TLS Encryption"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "SSL Enabled: {{ ssl_enabled | default(true) }}"
+          - "Protocols: {{ ssl_protocols | default('TLSv1.2 TLSv1.3') }}"
+          - "Timestamp: {{ ssl_timestamp }}"
+          - "=========================================="
+
+    - name: "Verify host is in webservers group"
+      assert:
+        that:
+          - "'webservers' in group_names"
+        fail_msg: "SSL/TLS configuration should only run on webservers"
+        success_msg: "Host group verified"
+
+    - name: "Check if SSL is enabled"
+      assert:
+        that:
+          - ssl_enabled | default(true) | bool
+        fail_msg: "SSL is disabled. Set ssl_enabled=true to configure SSL/TLS"
+        success_msg: "SSL is enabled. Proceeding with configuration..."
+
+  tasks:
+    - name: "Execute SSL/TLS role"
+      include_role:
+        name: ssl_tls
+      tags:
+        - ssl_tls
+
+  post_tasks:
+    - name: "Verify SSL certificate files exist"
+      stat:
+        path: "{{ item }}"
+      register: ssl_files_check
+      loop:
+        - "{{ ssl_certificate_path | default('/etc/nginx/ssl/server.crt') }}"
+        - "{{ ssl_certificate_key_path | default('/etc/nginx/ssl/server.key') }}"
+        - "{{ ssl_dhparam_path | default('/etc/nginx/ssl/dhparam.pem') }}"
+      failed_when: not ssl_files_check.results[0].stat.exists
+
+    - name: "Test SSL configuration with OpenSSL"
+      command: >
+        openssl s_client -connect localhost:443 -tls1_2 -brief
+      register: ssl_test
+      changed_when: false
+      failed_when: false
+      timeout: 10
+
+    - name: "Display SSL/TLS configuration completion"
+      debug:
+        msg:
+          - "=========================================="
+          - "SSL/TLS Configuration Status: COMPLETE"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "Certificate: {{ ssl_certificate_path | default('/etc/nginx/ssl/server.crt') }}"
+          - "Protocols: {{ ssl_protocols | default('TLSv1.2 TLSv1.3') }}"
+          - "DH Parameters: {{ ssl_dhparam_bits | default(2048) }} bits"
+          - "OCSP Stapling: {{ 'Enabled' if ssl_stapling | default(true) else 'Disabled' }}"
+          - "Completion Time: {{ ansible_date_time.iso8601 }}"
+          - "=========================================="
+
+    - name: "Generate SSL/TLS configuration report"
+      copy:
+        content: |
+          {
+            "timestamp": "{{ ansible_date_time.iso8601 }}",
+            "hostname": "{{ inventory_hostname }}",
+            "playbook": "ssl_tls",
+            "ssl_enabled": {{ ssl_enabled | default(true) | to_json }},
+            "protocols": "{{ ssl_protocols | default('TLSv1.2 TLSv1.3') }}",
+            "certificate_path": "{{ ssl_certificate_path | default('/etc/nginx/ssl/server.crt') }}",
+            "dhparam_bits": {{ ssl_dhparam_bits | default(2048) }},
+            "ocsp_stapling": {{ ssl_stapling | default(true) | to_json }},
+            "status": "COMPLETE"
+          }
+        dest: "/tmp/ssl-config-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.json"
+
+    - name: "Fetch SSL/TLS report"
+      fetch:
+        src: "/tmp/ssl-config-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.json"
+        dest: "reports/ssl-config-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.json"
+        flat: yes
+
+    - name: "Restart NGINX to apply SSL changes"
+      systemd:
+        name: "{{ nginx_service_name | default('nginx') }}"
+        state: restarted
+      when: ssl_files_check is changed
+
+  rescue:
+    - name: "SSL/TLS configuration failed"
+      debug:
+        msg:
+          - "=========================================="
+          - "SSL/TLS Configuration Status: FAILED"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "ERROR: SSL configuration failed"
+          - "Review errors above"
+          - "=========================================="
+
+    - name: "Fail playbook"
+      fail:
+        msg: "SSL/TLS configuration failed on {{ inventory_hostname }}"
+
+################################################################################
+# END OF FILE: playbooks/ssl_tls.yml
+################################################################################

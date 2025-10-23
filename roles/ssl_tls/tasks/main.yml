@@ -1,0 +1,147 @@
+################################################################################
+# File: roles/ssl_tls/tasks/main.yml
+# Purpose: Main orchestration for SSL/TLS role
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Main SSL/TLS orchestration
+
+- name: "SSL/TLS | Display role banner"
+  debug:
+    msg:
+      - "=========================================="
+      - "Role: SSL/TLS Configuration"
+      - "=========================================="
+      - "Host: {{ inventory_hostname }}"
+      - "SSL Enabled: {{ ssl_enabled }}"
+      - "Protocols: {{ ssl_protocols }}"
+      - "OCSP Stapling: {{ ssl_stapling }}"
+      - "HSTS: {{ ssl_hsts_enabled }}"
+      - "Timestamp: {{ ansible_date_time.iso8601 }}"
+      - "=========================================="
+  tags:
+    - ssl_tls
+    - always
+
+- name: "SSL/TLS | Verify SSL is enabled"
+  assert:
+    that:
+      - ssl_enabled | bool
+    fail_msg: "SSL/TLS is disabled. Set ssl_enabled=true to configure SSL/TLS"
+    success_msg: "SSL enabled. Proceeding with configuration..."
+  tags:
+    - ssl_tls
+    - always
+
+- name: "SSL/TLS | Verify host is in webservers group"
+  assert:
+    that:
+      - "'webservers' in group_names"
+    fail_msg: "SSL/TLS should only be configured on webservers"
+    success_msg: "Host group verified"
+  tags:
+    - ssl_tls
+    - always
+
+- name: "SSL/TLS | Create SSL certificate directory"
+  file:
+    path: "{{ ssl_certificate_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  tags:
+    - ssl_tls
+
+- name: "SSL/TLS | Generate certificates (if required)"
+  include_tasks: generate_certs.yml
+  when: ssl_generate_self_signed | bool
+  tags:
+    - ssl_tls
+    - ssl_generate
+
+- name: "SSL/TLS | Configure SSL/TLS settings"
+  include_tasks: configure_ssl.yml
+  tags:
+    - ssl_tls
+    - ssl_configure
+
+- name: "SSL/TLS | Apply SSL hardening"
+  include_tasks: ssl_hardening.yml
+  tags:
+    - ssl_tls
+    - ssl_harden
+
+- name: "SSL/TLS | Verify SSL certificate exists"
+  stat:
+    path: "{{ ssl_certificate_path }}"
+  register: ssl_cert_check
+  tags:
+    - ssl_tls
+
+- name: "SSL/TLS | Verify SSL private key exists"
+  stat:
+    path: "{{ ssl_certificate_key_path }}"
+  register: ssl_key_check
+  tags:
+    - ssl_tls
+
+- name: "SSL/TLS | Fail if certificates not found"
+  fail:
+    msg: "SSL certificate or key not found. Generate or deploy certificates first."
+  when:
+    - not ssl_cert_check.stat.exists or not ssl_key_check.stat.exists
+    - not ssl_generate_self_signed | bool
+  tags:
+    - ssl_tls
+
+- name: "SSL/TLS | Check certificate expiry"
+  shell: |
+    openssl x509 -enddate -noout -in {{ ssl_certificate_path }} | cut -d= -f2 | xargs -I{} date -d "{}" +%s
+  register: ssl_cert_expiry_timestamp
+  changed_when: false
+  when: ssl_cert_check.stat.exists
+  tags:
+    - ssl_tls
+
+- name: "SSL/TLS | Calculate days until expiry"
+  set_fact:
+    ssl_certificate_expiry_days: "{{ ((ssl_cert_expiry_timestamp.stdout | int - ansible_date_time.epoch | int) / 86400) | int }}"
+  when: ssl_cert_check.stat.exists
+  tags:
+    - ssl_tls
+
+- name: "SSL/TLS | Warn if certificate expiring soon"
+  debug:
+    msg:
+      - "WARNING: SSL certificate expires in {{ ssl_certificate_expiry_days }} days"
+      - "Certificate path: {{ ssl_certificate_path }}"
+  when:
+    - ssl_cert_check.stat.exists
+    - ssl_certificate_expiry_days | int < ssl_certificate_days_warning | int
+  tags:
+    - ssl_tls
+
+- name: "SSL/TLS | Display completion summary"
+  debug:
+    msg:
+      - "=========================================="
+      - "SSL/TLS Configuration Complete"
+      - "=========================================="
+      - "Host: {{ inventory_hostname }}"
+      - "Certificate: {{ ssl_certificate_path }}"
+      - "Protocols: {{ ssl_protocols }}"
+      - "DH Params: {{ ssl_dhparam_bits }} bits"
+      - "OCSP Stapling: {{ 'Enabled' if ssl_stapling else 'Disabled' }}"
+      - "HSTS: {{ 'Enabled' if ssl_hsts_enabled else 'Disabled' }}"
+      - "Certificate Expiry: {{ ssl_certificate_expiry_days | default('Unknown') }} days"
+      - "=========================================="
+  tags:
+    - ssl_tls
+    - always
+
+################################################################################
+# END OF FILE: roles/ssl_tls/tasks/main.yml
+################################################################################

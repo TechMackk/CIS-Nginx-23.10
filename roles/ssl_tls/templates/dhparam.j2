@@ -1,0 +1,17 @@
+################################################################################
+# File: roles/ssl_tls/templates/dhparam.j2
+# Purpose: Template for DH parameters (not typically used, generated directly)
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+#
+# Note: DH parameters are typically generated using openssl_dhparam module
+#       This template is included for completeness but not actively used
+################################################################################
+
+# Diffie-Hellman parameters will be generated at: {{ ssl_dhparam_path }}
+# Size: {{ ssl_dhparam_bits }} bits
+# Generation command: openssl dhparam -out {{ ssl_dhparam_path }} {{ ssl_dhparam_bits }}
+
+################################################################################
+# END OF FILE: roles/ssl_tls/templates/dhparam.j2
+################################################################################

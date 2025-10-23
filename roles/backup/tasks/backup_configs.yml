@@ -1,0 +1,121 @@
+################################################################################
+# File: roles/backup/tasks/backup_configs.yml
+# Purpose: Backup system configuration files
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# System configuration backup tasks
+
+- name: "Backup Configs | Check if system config paths exist"
+  stat:
+    path: "{{ item }}"
+  loop: "{{ backup_system_configs }}"
+  register: config_paths_check
+  tags:
+    - backup_configs
+
+- name: "Backup Configs | Create system configs backup directory"
+  file:
+    path: "{{ backup_destination }}/system_configs"
+    state: directory
+    mode: '0700'
+  tags:
+    - backup_configs
+
+- name: "Backup Configs | Backup system configuration files"
+  copy:
+    src: "{{ item.item }}"
+    dest: "{{ backup_destination }}/system_configs/"
+    remote_src: yes
+    mode: preserve
+  loop: "{{ config_paths_check.results }}"
+  when:
+    - item.stat.exists
+  ignore_errors: yes
+  tags:
+    - backup_configs
+
+- name: "Backup Configs | Backup firewall configurations"
+  copy:
+    src: "{{ item }}"
+    dest: "{{ backup_destination }}/firewall_configs/"
+    remote_src: yes
+    mode: preserve
+  loop: "{{ backup_firewall_configs }}"
+  when: item is exists
+  ignore_errors: yes
+  tags:
+    - backup_configs
+
+- name: "Backup Configs | Export current firewall rules"
+  shell: |
+    firewall-cmd --list-all-zones > {{ backup_destination }}/firewall_rules.txt
+    iptables-save > {{ backup_destination }}/iptables_rules.txt 2>/dev/null || true
+    ip6tables-save > {{ backup_destination }}/ip6tables_rules.txt 2>/dev/null || true
+  ignore_errors: yes
+  tags:
+    - backup_configs
+
+- name: "Backup Configs | Backup SELinux policy"
+  shell: |
+    semanage export > {{ backup_destination }}/selinux_policy.txt
+  when: ansible_selinux.status is defined and ansible_selinux.status == "enabled"
+  ignore_errors: yes
+  tags:
+    - backup_configs
+
+- name: "Backup Configs | Backup audit rules"
+  copy:
+    src: /etc/audit/audit.rules
+    dest: "{{ backup_destination }}/audit_rules.txt"
+    remote_src: yes
+  when: ansible_facts.services['auditd.service'] is defined
+  ignore_errors: yes
+  tags:
+    - backup_configs
+
+- name: "Backup Configs | Backup kernel parameters"
+  shell: sysctl -a > {{ backup_destination }}/sysctl_settings.txt
+  ignore_errors: yes
+  tags:
+    - backup_configs
+
+- name: "Backup Configs | Backup systemd configurations"
+  copy:
+    src: /etc/systemd/system
+    dest: "{{ backup_destination }}/systemd_configs/"
+    remote_src: yes
+    mode: preserve
+  ignore_errors: yes
+  tags:
+    - backup_configs
+
+- name: "Backup Configs | Create compressed archive of system configs"
+  archive:
+    path: "{{ backup_destination }}/system_configs"
+    dest: "{{ backup_destination }}/system_configs.tar.{{ backup_compression_format }}"
+    format: "{{ 'gz' if backup_compression_format == 'gz' else 'bz2' if backup_compression_format == 'bz2' else 'xz' }}"
+    remove: yes
+  when: backup_compress | bool
+  tags:
+    - backup_configs
+
+- name: "Backup Configs | Verify backup archive"
+  stat:
+    path: "{{ backup_destination }}/system_configs.tar.{{ backup_compression_format }}"
+  register: system_backup_archive
+  when: backup_compress | bool
+  tags:
+    - backup_configs
+
+- name: "Backup Configs | Display backup completion"
+  debug:
+    msg: "System configuration backup completed: {{ (system_backup_archive.stat.size / 1024 / 1024) | round(2) if system_backup_archive.stat is defined and system_backup_archive.stat.exists else 0 }} MB"
+  tags:
+    - backup_configs
+
+################################################################################
+# END OF FILE: roles/backup/tasks/backup_configs.yml
+################################################################################

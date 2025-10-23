@@ -1,0 +1,54 @@
+################################################################################
+# File: roles/rhel_hardening/vars/main.yml
+# Purpose: Role-specific variables (higher precedence)
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Internal tracking variables
+rhel_hardening_status: "running"
+rhel_hardening_changes: []
+rhel_hardening_errors: []
+
+# CIS benchmark version tracking
+cis_benchmark_version: "{{ '2.0.0' if ansible_distribution_major_version == '8' else '1.0.0' }}"
+
+# Critical system files for permission checks
+critical_files:
+  - path: /etc/passwd
+    owner: root
+    group: root
+    mode: "0644"
+  - path: /etc/shadow
+    owner: root
+    group: root
+    mode: "0000"
+  - path: /etc/group
+    owner: root
+    group: root
+    mode: "0644"
+  - path: /etc/gshadow
+    owner: root
+    group: root
+    mode: "0000"
+  - path: /etc/passwd-
+    owner: root
+    group: root
+    mode: "0600"
+  - path: /etc/shadow-
+    owner: root
+    group: root
+    mode: "0000"
+  - path: /etc/group-
+    owner: root
+    group: root
+    mode: "0600"
+  - path: /etc/gshadow-
+    owner: root
+    group: root
+    mode: "0000"
+
+################################################################################
+# END OF FILE: roles/rhel_hardening/vars/main.yml
+################################################################################

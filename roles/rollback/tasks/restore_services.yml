@@ -1,0 +1,49 @@
+################################################################################
+# File: roles/rollback/tasks/restore_services.yml
+# Purpose: Restart services after rollback
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Restore and restart services
+
+- name: "Restore Services | Restart critical services"
+  systemd:
+    name: "{{ item }}"
+    state: restarted
+  loop: "{{ rollback_services }}"
+  when: item != 'auditd'
+  ignore_errors: yes
+  tags:
+    - restore_services
+
+- name: "Restore Services | Restart auditd (special handling)"
+  command: service auditd restart
+  when: "'auditd' in rollback_services"
+  ignore_errors: yes
+  tags:
+    - restore_services
+
+- name: "Restore Services | Verify services are running"
+  systemd:
+    name: "{{ item }}"
+    state: started
+  loop: "{{ rollback_services }}"
+  when: item != 'auditd'
+  register: service_status
+  ignore_errors: yes
+  tags:
+    - restore_services
+
+- name: "Restore Services | Display service status"
+  debug:
+    msg:
+      - "Service restoration complete"
+      - "Check service status manually if issues occur"
+  tags:
+    - restore_services
+
+################################################################################
+# END OF FILE: roles/rollback/tasks/restore_services.yml
+################################################################################

@@ -1,0 +1,165 @@
+################################################################################
+# File: playbooks/rollback.yml
+# Purpose: Emergency rollback to restore pre-hardening configuration
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+#
+# Description:
+#   Restores system to pre-hardening state using backed-up configurations.
+#   Use only in emergency situations when hardening causes issues.
+#
+# Usage:
+#   ansible-playbook -i inventory/dev/hosts.yml playbooks/rollback.yml
+#   ansible-playbook -i inventory/dev/hosts.yml playbooks/rollback.yml --extra-vars "backup_timestamp=1234567890"
+#
+# WARNING:
+#   This operation will revert ALL hardening changes!
+#   Ensure you have appropriate approvals before executing.
+################################################################################
+
+---
+- name: "Rollback: Restore Pre-Hardening Configuration"
+  hosts: all
+  gather_facts: true
+  become: true
+  
+  vars:
+    rollback_timestamp: "{{ ansible_date_time.iso8601 }}"
+    backup_to_restore: "{{ backup_timestamp | default('LAST_BACKUP') }}"
+    rollback_confirmation_required: true
+
+  tags:
+    - rollback
+    - emergency
+    - never  # Prevents accidental execution
+
+  pre_tasks:
+    - name: "Display CRITICAL rollback warning"
+      debug:
+        msg:
+          - "=========================================="
+          - "!!!       CRITICAL WARNING        !!!"
+          - "=========================================="
+          - "ROLLBACK OPERATION INITIATED"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "Environment: {{ environment_name | default('undefined') }}"
+          - "Backup to Restore: {{ backup_to_restore }}"
+          - "=========================================="
+          - "This will REVERT all hardening changes!"
+          - "Services will be restarted!"
+          - "System may experience brief downtime!"
+          - "=========================================="
+
+    - name: "Require manual confirmation"
+      pause:
+        prompt: |
+          
+          ⚠️  ROLLBACK CONFIRMATION REQUIRED ⚠️
+          
+          You are about to ROLLBACK hardening on: {{ inventory_hostname }}
+          
+          This action will:
+          - Restore backed-up configuration files
+          - Restart critical services
+          - Revert CIS hardening controls
+          
+          Type 'YES' to confirm rollback, or Ctrl+C to abort: 
+      register: rollback_confirm
+      when: rollback_confirmation_required | bool
+
+    - name: "Verify confirmation"
+      assert:
+        that:
+          - rollback_confirm.user_input == "YES"
+        fail_msg: "Rollback aborted. Confirmation not received."
+        success_msg: "Rollback confirmed. Proceeding..."
+      when: rollback_confirmation_required | bool
+
+    - name: "Verify backup exists"
+      stat:
+        path: "{{ backup_root_dir }}/LAST_BACKUP"
+      register: backup_check
+
+    - name: "Fail if no backup found"
+      fail:
+        msg: "No backup found. Cannot proceed with rollback."
+      when: not backup_check.stat.exists
+
+  tasks:
+    - name: "Execute rollback role"
+      include_role:
+        name: rollback
+      tags:
+        - rollback
+
+  post_tasks:
+    - name: "Verify services after rollback"
+      systemd:
+        name: "{{ item }}"
+        state: started
+      loop:
+        - sshd
+        - "{{ nginx_service_name | default('nginx') }}"
+        - firewalld
+        - auditd
+      ignore_errors: yes
+
+    - name: "Display rollback completion"
+      debug:
+        msg:
+          - "=========================================="
+          - "Rollback Status: COMPLETE"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "Restored Backup: {{ backup_to_restore }}"
+          - "Completion Time: {{ ansible_date_time.iso8601 }}"
+          - "=========================================="
+          - "IMPORTANT: Verify system functionality"
+          - "Services have been restarted"
+          - "Manual verification recommended"
+          - "=========================================="
+
+    - name: "Generate rollback report"
+      copy:
+        content: |
+          {
+            "timestamp": "{{ ansible_date_time.iso8601 }}",
+            "hostname": "{{ inventory_hostname }}",
+            "operation": "rollback",
+            "backup_restored": "{{ backup_to_restore }}",
+            "executed_by": "{{ ansible_user_id }}",
+            "status": "COMPLETE"
+          }
+        dest: "/tmp/rollback-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.json"
+
+    - name: "Fetch rollback report"
+      fetch:
+        src: "/tmp/rollback-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.json"
+        dest: "reports/rollback-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.json"
+        flat: yes
+
+  rescue:
+    - name: "Rollback failed"
+      debug:
+        msg:
+          - "=========================================="
+          - "Rollback Status: FAILED"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "CRITICAL: Rollback operation failed"
+          - "Manual intervention required immediately"
+          - "Contact: {{ notification_email | default('devops@company.com') }}"
+          - "=========================================="
+
+    - name: "Send emergency alert"
+      debug:
+        msg: "Emergency: Rollback failed on {{ inventory_hostname }}. Manual recovery required."
+
+    - name: "Fail playbook"
+      fail:
+        msg: "Rollback failed on {{ inventory_hostname }}. System may be in inconsistent state."
+
+################################################################################
+# END OF FILE: playbooks/rollback.yml
+################################################################################

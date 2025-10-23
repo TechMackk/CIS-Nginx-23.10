@@ -1,0 +1,21 @@
+################################################################################
+# File: roles/nginx/vars/main.yml
+# Purpose: Role-specific variables (higher precedence)
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Internal tracking variables
+nginx_installation_status: "pending"
+nginx_config_validated: false
+
+# NGINX package dependencies
+nginx_dependencies:
+  - openssl
+  - pcre
+  - zlib
+
+################################################################################
+# END OF FILE: roles/nginx/vars/main.yml
+################################################################################

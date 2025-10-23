@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+################################################################################
+# File: roles/firewall/templates/custom_zone.xml.j2
+# Purpose: Custom firewall zone configuration template
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+<!--
+Managed by Ansible - DO NOT EDIT MANUALLY
+Custom Firewall Zone Configuration
+Environment: {{ environment_name | default('undefined') }}
+-->
+
+<zone>
+  <short>{{ zone_short_name | default('Custom') }}</short>
+  <description>{{ zone_description | default('Custom zone configured by Ansible') }}</description>
+  
+  <!-- Default target action: default, ACCEPT, REJECT, DROP -->
+  <target>{{ zone_target | default('default') }}</target>
+  
+  <!-- Services -->
+  {% if zone_services is defined and zone_services | length > 0 %}
+  {% for service in zone_services %}
+  <service name="{{ service }}"/>
+  {% endfor %}
+  {% endif %}
+  
+  <!-- Ports -->
+  {% if zone_ports is defined and zone_ports | length > 0 %}
+  {% for port in zone_ports %}
+  <port protocol="{{ port.split('/')[1] }}" port="{{ port.split('/')[0] }}"/>
+  {% endfor %}
+  {% endif %}
+  
+  <!-- Source addresses -->
+  {% if zone_sources is defined and zone_sources | length > 0 %}
+  {% for source in zone_sources %}
+  <source address="{{ source }}"/>
+  {% endfor %}
+  {% endif %}
+  
+  <!-- ICMP blocks -->
+  {% if zone_icmp_blocks is defined and zone_icmp_blocks | length > 0 %}
+  {% for icmp in zone_icmp_blocks %}
+  <icmp-block name="{{ icmp }}"/>
+  {% endfor %}
+  {% endif %}
+  
+  <!-- Masquerading -->
+  {% if zone_masquerade | default(false) %}
+  <masquerade/>
+  {% endif %}
+  
+  <!-- Rich rules -->
+  {% if zone_rich_rules is defined and zone_rich_rules | length > 0 %}
+  {% for rule in zone_rich_rules %}
+  <rule>{{ rule }}</rule>
+  {% endfor %}
+  {% endif %}
+  
+</zone>
+
+################################################################################
+# END OF FILE: roles/firewall/templates/custom_zone.xml.j2
+################################################################################

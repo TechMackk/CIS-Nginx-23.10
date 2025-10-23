@@ -1,0 +1,20 @@
+################################################################################
+# File: roles/firewall/vars/main.yml
+# Purpose: Role-specific variables (higher precedence)
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Internal tracking variables
+firewall_configuration_status: "pending"
+
+# Firewall packages
+firewall_packages:
+  - firewalld
+  - iptables
+  - iptables-services
+
+################################################################################
+# END OF FILE: roles/firewall/vars/main.yml
+################################################################################

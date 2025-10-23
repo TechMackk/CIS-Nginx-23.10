@@ -1,0 +1,179 @@
+################################################################################
+# File: roles/nginx/templates/nginx.conf.j2
+# Purpose: Main NGINX configuration template
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+# Managed by Ansible - DO NOT EDIT MANUALLY
+# Last updated: {{ ansible_date_time.iso8601 }}
+# Environment: {{ environment_name | default('undefined') }}
+
+user {{ nginx_user }} {{ nginx_group }};
+worker_processes {{ nginx_worker_processes }};
+worker_rlimit_nofile {{ nginx_worker_rlimit_nofile }};
+error_log {{ nginx_error_log_path }} {{ nginx_error_log_level }};
+pid {{ nginx_pid_file }};
+
+# Load dynamic modules
+include /usr/share/nginx/modules/*.conf;
+
+events {
+    worker_connections {{ nginx_worker_connections }};
+    use {{ nginx_events_use }};
+    multi_accept {{ nginx_multi_accept }};
+}
+
+http {
+    ########################################################################
+    ## Basic Settings
+    ########################################################################
+    
+    include {{ nginx_config_dir }}/mime.types;
+    default_type application/octet-stream;
+    
+    ########################################################################
+    ## Logging Settings
+    ########################################################################
+    
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+    
+    {% if nginx_access_log_enabled %}
+    access_log {{ nginx_access_log_path }} {{ nginx_access_log_format }};
+    {% else %}
+    access_log off;
+    {% endif %}
+    
+    ########################################################################
+    ## Performance Settings
+    ########################################################################
+    
+    sendfile {{ nginx_sendfile }};
+    tcp_nopush {{ nginx_tcp_nopush }};
+    tcp_nodelay {{ nginx_tcp_nodelay }};
+    keepalive_timeout {{ nginx_keepalive_timeout }};
+    keepalive_requests {{ nginx_keepalive_requests }};
+    reset_timedout_connection {{ nginx_reset_timedout_connection }};
+    
+    types_hash_max_size 2048;
+    server_names_hash_bucket_size 128;
+    
+    ########################################################################
+    ## Client Settings
+    ########################################################################
+    
+    client_max_body_size {{ nginx_client_max_body_size }};
+    client_body_buffer_size {{ nginx_client_body_buffer_size }};
+    client_body_timeout {{ nginx_client_body_timeout }};
+    client_header_timeout {{ nginx_client_header_timeout }};
+    client_header_buffer_size {{ nginx_client_header_buffer_size }};
+    large_client_header_buffers {{ nginx_large_client_header_buffers }};
+    
+    send_timeout {{ nginx_send_timeout }};
+    
+    ########################################################################
+    ## Security Settings
+    ########################################################################
+    
+    # Hide NGINX version
+    {% if nginx_hide_version %}
+    server_tokens {{ nginx_server_tokens }};
+    {% endif %}
+    
+    # Disable content-type sniffing
+    add_header X-Content-Type-Options "nosniff" always;
+    
+    # Enable XSS protection
+    add_header X-XSS-Protection "1; mode=block" always;
+    
+    # Prevent clickjacking
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    
+    # Control referrer information
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    
+    # Disable logging of 404 errors (optional)
+    log_not_found {{ nginx_log_not_found }};
+    
+    ########################################################################
+    ## Gzip Compression
+    ########################################################################
+    
+    {% if nginx_gzip_enabled %}
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level {{ nginx_gzip_comp_level }};
+    gzip_min_length {{ nginx_gzip_min_length }};
+    gzip_types {{ nginx_gzip_types | join(' ') }};
+    gzip_disable "msie6";
+    {% else %}
+    gzip off;
+    {% endif %}
+    
+    ########################################################################
+    ## Buffer Overflow Protection
+    ########################################################################
+    
+    {% if nginx_client_body_buffer_overflow_protection %}
+    client_body_in_file_only clean;
+    client_body_buffer_size {{ nginx_client_body_buffer_size }};
+    {% endif %}
+    
+    ########################################################################
+    ## SSL/TLS Settings (Global)
+    ########################################################################
+    
+    {% if ssl_enabled %}
+    ssl_protocols {{ ssl_protocols }};
+    ssl_prefer_server_ciphers {{ ssl_prefer_server_ciphers }};
+    {% endif %}
+    
+    ########################################################################
+    ## Rate Limiting (if enabled)
+    ########################################################################
+    
+    {% if rate_limiting_enabled %}
+    # Rate limiting zones defined in conf.d/rate-limit.conf
+    {% endif %}
+    
+    ########################################################################
+    ## Connection Limiting (if enabled)
+    ########################################################################
+    
+    {% if connection_limit_enabled %}
+    # Connection limiting zones defined in conf.d/conn-limit.conf
+    {% endif %}
+    
+    ########################################################################
+    ## Proxy Settings (if enabled)
+    ########################################################################
+    
+    {% if nginx_proxy_enabled %}
+    proxy_cache_path {{ nginx_proxy_cache_path }} levels={{ nginx_proxy_cache_levels }} 
+                     keys_zone={{ nginx_proxy_cache_keys_zone }} max_size={{ nginx_proxy_cache_max_size }} 
+                     inactive=60m use_temp_path=off;
+    
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    {% endif %}
+    
+    ########################################################################
+    ## Include Additional Configurations
+    ########################################################################
+    
+    # Security headers
+    include {{ nginx_config_dir }}/conf.d/security.conf;
+    
+    # Virtual hosts
+    include {{ nginx_config_dir }}/conf.d/*.conf;
+    include {{ nginx_config_dir }}/sites-enabled/*;
+}
+
+################################################################################
+# END OF FILE: roles/nginx/templates/nginx.conf.j2
+################################################################################

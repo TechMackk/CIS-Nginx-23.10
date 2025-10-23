@@ -1,0 +1,79 @@
+################################################################################
+# File: roles/rollback/tasks/restore_configs.yml
+# Purpose: Restore backed-up configuration files
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Restore configuration files
+
+- name: "Restore Configs | Read backup timestamp"
+  shell: cat {{ backup_root_dir }}/LAST_BACKUP | grep LAST_BACKUP_TIMESTAMP | cut -d= -f2
+  register: backup_ts
+  when: backup_timestamp == "LAST_BACKUP"
+  tags:
+    - restore_configs
+
+- name: "Restore Configs | Set backup path"
+  set_fact:
+    restore_backup_path: "{{ backup_root_dir }}/{{ backup_ts.stdout if backup_timestamp == 'LAST_BACKUP' else backup_timestamp }}"
+  tags:
+    - restore_configs
+
+- name: "Restore Configs | Verify backup exists"
+  stat:
+    path: "{{ restore_backup_path }}"
+  register: backup_check
+  tags:
+    - restore_configs
+
+- name: "Restore Configs | Fail if backup not found"
+  fail:
+    msg: "Backup not found at {{ restore_backup_path }}"
+  when: not backup_check.stat.exists
+  tags:
+    - restore_configs
+
+- name: "Restore Configs | Extract system configs"
+  unarchive:
+    src: "{{ restore_backup_path }}/system_configs.tar.gz"
+    dest: "/"
+    remote_src: yes
+  when: restore_system_configs | bool
+  tags:
+    - restore_configs
+
+- name: "Restore Configs | Extract NGINX configs"
+  unarchive:
+    src: "{{ restore_backup_path }}/nginx_configs.tar.gz"
+    dest: "/"
+    remote_src: yes
+  when:
+    - restore_nginx_configs | bool
+    - "'webservers' in group_names"
+  ignore_errors: yes
+  tags:
+    - restore_configs
+
+- name: "Restore Configs | Restore firewall rules"
+  shell: |
+    if [ -f "{{ restore_backup_path }}/iptables_rules.txt" ]; then
+      iptables-restore < {{ restore_backup_path }}/iptables_rules.txt
+    fi
+  when: restore_firewall_rules | bool
+  ignore_errors: yes
+  tags:
+    - restore_configs
+
+- name: "Restore Configs | Display restore summary"
+  debug:
+    msg:
+      - "Configuration files restored from:"
+      - "{{ restore_backup_path }}"
+  tags:
+    - restore_configs
+
+################################################################################
+# END OF FILE: roles/rollback/tasks/restore_configs.yml
+################################################################################

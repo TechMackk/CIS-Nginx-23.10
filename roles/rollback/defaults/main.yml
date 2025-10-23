@@ -1,0 +1,39 @@
+################################################################################
+# File: roles/rollback/defaults/main.yml
+# Purpose: Default variables for rollback role
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Rollback behavior
+rollback_enabled: true
+rollback_confirmation_required: true
+
+# Backup location
+backup_root_dir: "/backup"
+backup_timestamp: "LAST_BACKUP"  # or specific timestamp
+
+# Services to restart after rollback
+rollback_services:
+  - sshd
+  - firewalld
+  - auditd
+  - nginx
+
+# Rollback operations
+restore_system_configs: true
+restore_nginx_configs: true
+restore_firewall_rules: true
+
+# Safety checks
+verify_backup_before_restore: true
+create_pre_rollback_snapshot: true
+
+# Rollback reporting
+rollback_report_dir: "/var/log/rollback"
+rollback_log_file: "rollback-{{ ansible_date_time.epoch }}.log"
+
+################################################################################
+# END OF FILE: roles/rollback/defaults/main.yml
+################################################################################

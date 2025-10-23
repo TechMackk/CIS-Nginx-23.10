@@ -1,0 +1,71 @@
+################################################################################
+# File: requirements.yml
+# Purpose: External Ansible role and collection dependencies
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+# Usage: ansible-galaxy install -r requirements.yml
+################################################################################
+
+---
+# Ansible Galaxy Collections
+collections:
+  # Community general collection (essential utilities)
+  - name: community.general
+    version: ">=8.0.0"
+    source: https://galaxy.ansible.com
+
+  # POSIX utilities for RHEL/Linux
+  - name: ansible.posix
+    version: ">=1.5.0"
+    source: https://galaxy.ansible.com
+
+  # Crypto collection for SSL/TLS management
+  - name: community.crypto
+    version: ">=2.0.0"
+    source: https://galaxy.ansible.com
+
+  # Docker collection (if container hardening needed)
+  - name: community.docker
+    version: ">=3.0.0"
+    source: https://galaxy.ansible.com
+
+# External Ansible Roles (optional - for reference or extension)
+roles:
+  # CIS Benchmark reference roles (optional - we're building custom)
+  # Uncomment if you want to compare or extend existing CIS roles
+  
+  # - name: RedHatOfficial.rhel8_cis
+  #   src: https://github.com/RedHatOfficial/ansible-role-rhel8-cis.git
+  #   version: main
+  #   scm: git
+
+  # - name: ansible-lockdown.RHEL9-CIS
+  #   src: https://github.com/ansible-lockdown/RHEL9-CIS.git
+  #   version: main
+  #   scm: git
+
+  # Firewall management role (alternative to custom implementation)
+  # - name: geerlingguy.firewall
+  #   src: geerlingguy.firewall
+  #   version: 3.1.0
+
+  # NGINX role (alternative to custom implementation)
+  # - name: geerlingguy.nginx
+  #   src: geerlingguy.nginx
+  #   version: 3.1.4
+
+  # Security hardening role (general Linux hardening)
+  # - name: dev-sec.os-hardening
+  #   src: dev-sec.os-hardening
+  #   version: 7.2.0
+
+# Notes:
+# 1. Install collections: ansible-galaxy collection install -r requirements.yml
+# 2. Install roles: ansible-galaxy role install -r requirements.yml
+# 3. Update all: ansible-galaxy collection install -r requirements.yml --force
+# 4. For air-gapped environments, download and host internally:
+#    ansible-galaxy collection download -r requirements.yml -p ./collections
+
+################################################################################
+# END OF FILE: requirements.yml
+################################################################################

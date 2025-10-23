@@ -1,0 +1,137 @@
+################################################################################
+# File: roles/rhel_hardening/tasks/network.yml
+# Purpose: CIS Section 3 - Network configuration hardening
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# CIS Section 3 - Network Configuration
+
+- name: "CIS 3.1.x | Disable wireless interfaces"
+  block:
+    - name: "CIS 3.1.1 | Check for wireless interfaces"
+      shell: ip link show | grep -E '(wlan|wifi)'
+      register: wireless_check
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 3.1.2 | Disable wireless if found"
+      shell: |
+        nmcli radio all off
+      when: wireless_check.rc == 0
+      ignore_errors: yes
+  tags:
+    - cis_3.1
+    - network
+
+- name: "CIS 3.2.x | Disable IPv6 if not used"
+  block:
+    - name: "CIS 3.2.1 | Disable IPv6 via sysctl"
+      sysctl:
+        name: "{{ item }}"
+        value: '1'
+        state: present
+        reload: yes
+        sysctl_file: /etc/sysctl.d/60-disable-ipv6.conf
+      loop:
+        - net.ipv6.conf.all.disable_ipv6
+        - net.ipv6.conf.default.disable_ipv6
+        - net.ipv6.conf.lo.disable_ipv6
+      when: disable_ipv6 | bool
+
+    - name: "CIS 3.2.2 | Disable IPv6 in GRUB"
+      lineinfile:
+        path: /etc/default/grub
+        regexp: '^GRUB_CMDLINE_LINUX='
+        line: 'GRUB_CMDLINE_LINUX="ipv6.disable=1"'
+        state: present
+      when:
+        - disable_ipv6 | bool
+        - network_ipv6_disable_method == "grub"
+      notify: update grub
+  when: disable_ipv6 | bool
+  tags:
+    - cis_3.2
+    - network
+
+- name: "CIS 3.3.x | Configure kernel network parameters"
+  sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: yes
+    sysctl_file: /etc/sysctl.d/60-cis-network.conf
+  loop: "{{ kernel_network_parameters | dict2items }}"
+  tags:
+    - cis_3.3
+    - network
+
+- name: "CIS 3.4.1.x | Ensure firewalld is installed and enabled"
+  block:
+    - name: "CIS 3.4.1.1 | Install firewalld"
+      package:
+        name: firewalld
+        state: present
+      when: configure_host_firewall | bool
+
+    - name: "CIS 3.4.1.2 | Enable firewalld service"
+      systemd:
+        name: firewalld
+        enabled: yes
+        state: started
+      when: configure_host_firewall | bool
+
+    - name: "CIS 3.4.1.3 | Ensure iptables service is not running with firewalld"
+      systemd:
+        name: iptables
+        enabled: no
+        state: stopped
+      when:
+        - configure_host_firewall | bool
+        - ansible_facts.services['iptables.service'] is defined
+      ignore_errors: yes
+  tags:
+    - cis_3.4.1
+    - network
+    - firewall
+
+- name: "CIS 3.4.2.x | Configure default zones"
+  block:
+    - name: "CIS 3.4.2.1 | Set default zone"
+      command: firewall-cmd --set-default-zone={{ firewall_default_zone | default('public') }}
+      when: configure_host_firewall | bool
+      changed_when: false
+
+    - name: "CIS 3.4.2.2 | Ensure loopback traffic is configured"
+      firewalld:
+        zone: trusted
+        interface: lo
+        permanent: yes
+        immediate: yes
+        state: enabled
+      when: configure_host_firewall | bool
+  tags:
+    - cis_3.4.2
+    - network
+    - firewall
+
+- name: "CIS 3.5.x | Configure Network Parameters (Host Only)"
+  sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: yes
+    sysctl_file: /etc/sysctl.d/70-cis-host-network.conf
+  loop:
+    - { key: 'net.ipv4.conf.all.send_redirects', value: '0' }
+    - { key: 'net.ipv4.conf.default.send_redirects', value: '0' }
+    - { key: 'net.ipv4.conf.all.accept_source_route', value: '0' }
+    - { key: 'net.ipv4.conf.default.accept_source_route', value: '0' }
+  tags:
+    - cis_3.5
+    - network
+
+################################################################################
+# END OF FILE: roles/rhel_hardening/tasks/network.yml
+################################################################################

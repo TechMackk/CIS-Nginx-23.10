@@ -1,0 +1,245 @@
+################################################################################
+# File: roles/rhel_hardening/templates/sshd_config.j2
+# Purpose: Hardened SSH server configuration based on CIS Benchmark
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+# Reference: CIS RHEL 8/9 Benchmark Section 5.2
+################################################################################
+
+# Managed by Ansible - DO NOT EDIT MANUALLY
+# Last updated: {{ ansible_date_time.iso8601 }}
+# Environment: {{ environment_name | default('undefined') }}
+
+################################################################################
+## Protocol and Networking
+################################################################################
+
+# Protocol version (CIS 5.2.1)
+Protocol {{ ssh_protocol }}
+
+# Listen addresses (specify to bind to specific IPs if needed)
+#ListenAddress 0.0.0.0
+#ListenAddress ::
+
+# Port (default 22, change if non-standard required)
+Port {{ ssh_port }}
+
+# Address family
+AddressFamily any
+
+################################################################################
+## Host Keys
+################################################################################
+
+# Host keys to use
+HostKey /etc/ssh/ssh_host_rsa_key
+HostKey /etc/ssh/ssh_host_ecdsa_key
+HostKey /etc/ssh/ssh_host_ed25519_key
+
+################################################################################
+## Logging
+################################################################################
+
+# Logging level (CIS 5.2.3)
+SyslogFacility AUTHPRIV
+LogLevel {{ ssh_log_level }}
+
+################################################################################
+## Authentication
+################################################################################
+
+# Login grace time (CIS 5.2.17)
+LoginGraceTime {{ ssh_login_grace_time }}
+
+# Root login (CIS 5.2.8)
+PermitRootLogin {{ ssh_permit_root_login }}
+
+# Strict modes
+StrictModes yes
+
+# Maximum authentication attempts (CIS 5.2.6)
+MaxAuthTries {{ ssh_max_auth_tries }}
+
+# Maximum sessions (CIS 5.2.18)
+MaxSessions {{ ssh_max_sessions }}
+
+# Maximum startups (CIS 5.2.19)
+MaxStartups {{ ssh_max_startups }}
+
+################################################################################
+## Public Key Authentication
+################################################################################
+
+# Public key authentication
+PubkeyAuthentication yes
+
+# Authorized keys file location
+AuthorizedKeysFile .ssh/authorized_keys
+
+################################################################################
+## Host-Based Authentication (CIS 5.2.10)
+################################################################################
+
+# Ignore .rhosts and .shosts (CIS 5.2.7)
+IgnoreRhosts {{ ssh_ignore_rhosts }}
+
+# Disable host-based authentication (CIS 5.2.10)
+HostbasedAuthentication {{ ssh_hostbased_authentication }}
+
+################################################################################
+## Password Authentication
+################################################################################
+
+# Password authentication (CIS 5.2.9)
+PasswordAuthentication no
+
+# Permit empty passwords (CIS 5.2.9)
+PermitEmptyPasswords {{ ssh_permit_empty_passwords }}
+
+################################################################################
+## Challenge-Response Authentication
+################################################################################
+
+# Challenge-response authentication
+ChallengeResponseAuthentication no
+
+################################################################################
+## Kerberos Authentication
+################################################################################
+
+# Kerberos authentication
+KerberosAuthentication no
+KerberosOrLocalPasswd no
+KerberosTicketCleanup yes
+
+################################################################################
+## GSSAPI Authentication
+################################################################################
+
+# GSSAPI authentication
+GSSAPIAuthentication no
+GSSAPICleanupCredentials yes
+
+################################################################################
+## User Environment
+################################################################################
+
+# Permit user environment (CIS 5.2.11)
+PermitUserEnvironment {{ ssh_permit_user_environment }}
+
+################################################################################
+## Ciphers, MACs, and Key Exchange Algorithms
+################################################################################
+
+# Ciphers (CIS 5.2.12)
+Ciphers {{ ssh_ciphers }}
+
+# MACs (CIS 5.2.13)
+MACs {{ ssh_macs }}
+
+# Key exchange algorithms (CIS 5.2.14)
+KexAlgorithms {{ ssh_kex_algorithms }}
+
+################################################################################
+## Idle Timeout
+################################################################################
+
+# Client alive interval (CIS 5.2.15)
+ClientAliveInterval {{ ssh_client_alive_interval }}
+
+# Client alive count max (CIS 5.2.16)
+ClientAliveCountMax {{ ssh_client_alive_count_max }}
+
+################################################################################
+## Banner
+################################################################################
+
+# Banner (CIS 5.2.20)
+Banner {{ ssh_banner }}
+
+################################################################################
+## X11 Forwarding
+################################################################################
+
+# X11 forwarding (CIS 5.2.4)
+X11Forwarding {{ ssh_x11_forwarding }}
+X11DisplayOffset 10
+X11UseLocalhost yes
+
+################################################################################
+## TCP Forwarding and Tunneling
+################################################################################
+
+# Allow TCP forwarding
+AllowTcpForwarding no
+
+# Allow agent forwarding
+AllowAgentForwarding no
+
+# Gateway ports
+GatewayPorts no
+
+# Permit tunnel
+PermitTunnel no
+
+################################################################################
+## Subsystems
+################################################################################
+
+# SFTP subsystem
+Subsystem sftp /usr/libexec/openssh/sftp-server -f AUTHPRIV -l INFO
+
+################################################################################
+## User and Group Access Control
+################################################################################
+
+# Allow/Deny users (configure as needed)
+#AllowUsers user1 user2
+#DenyUsers baduser1 baduser2
+
+# Allow/Deny groups (configure as needed)
+#AllowGroups sshusers admins
+#DenyGroups noremote
+
+{% if ssh_allowed_groups is defined and ssh_allowed_groups | length > 0 %}
+AllowGroups {{ ssh_allowed_groups }}
+{% endif %}
+
+################################################################################
+## Additional Security Settings
+################################################################################
+
+# Use PAM
+UsePAM yes
+
+# Print MOTD
+PrintMotd no
+
+# Print last log
+PrintLastLog yes
+
+# TCP keep alive
+TCPKeepAlive yes
+
+# Use DNS
+UseDNS no
+
+# Permit TTY
+PermitTTY yes
+
+# Compression
+Compression delayed
+
+# Accept environment variables
+AcceptEnv LANG LC_*
+
+# Override settings
+#Match User anoncvs
+#  X11Forwarding no
+#  AllowTcpForwarding no
+#  PermitTTY no
+#  ForceCommand cvs server
+
+################################################################################
+# END OF FILE: roles/rhel_hardening/templates/sshd_config.j2
+################################################################################

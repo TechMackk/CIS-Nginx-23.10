@@ -1,0 +1,25 @@
+################################################################################
+# File: roles/backup/handlers/main.yml
+# Purpose: Handlers for backup role
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+- name: update backup manifest
+  template:
+    src: backup_manifest.j2
+    dest: "{{ backup_manifest_path }}"
+    mode: '0644'
+  listen: "update manifest"
+
+- name: cleanup old backups
+  shell: |
+    find {{ backup_root_dir }} -maxdepth 1 -type d -mtime +{{ backup_retention_days }} -exec rm -rf {} \;
+  when: backup_cleanup_enabled | bool
+  listen: "cleanup backups"
+  ignore_errors: yes
+
+################################################################################
+# END OF FILE: roles/backup/handlers/main.yml
+################################################################################

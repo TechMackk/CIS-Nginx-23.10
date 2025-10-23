@@ -1,0 +1,211 @@
+################################################################################
+# File: roles/rhel_hardening/tasks/services.yml
+# Purpose: CIS Section 2 - Services and daemon hardening
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# CIS Section 2 - Services and Daemons
+
+- name: "CIS 2.1.x | Disable unnecessary services"
+  systemd:
+    name: "{{ item }}"
+    enabled: no
+    state: stopped
+  loop: "{{ services_to_disable }}"
+  when:
+    - disable_unnecessary_services | bool
+    - ansible_facts.services[item + '.service'] is defined
+  ignore_errors: yes
+  tags:
+    - cis_2.1
+    - services
+
+- name: "CIS 2.2.1.x | Configure time synchronization"
+  block:
+    - name: "CIS 2.2.1.1 | Ensure time sync service is enabled"
+      package:
+        name: "{{ time_sync_service }}"
+        state: present
+      when: time_sync_enabled | bool
+
+    - name: "CIS 2.2.1.2 | Configure chrony"
+      template:
+        src: chrony.conf.j2
+        dest: /etc/chrony.conf
+        owner: root
+        group: root
+        mode: '0644'
+      when:
+        - time_sync_enabled | bool
+        - time_sync_service == "chronyd"
+      notify: restart time sync
+
+    - name: "CIS 2.2.1.3 | Ensure chronyd is running"
+      systemd:
+        name: chronyd
+        enabled: yes
+        state: started
+      when:
+        - time_sync_enabled | bool
+        - time_sync_service == "chronyd"
+  tags:
+    - cis_2.2.1
+    - services
+    - time_sync
+
+- name: "CIS 2.2.2 | Ensure X Window System is not installed (Level 2)"
+  package:
+    name: xorg-x11*
+    state: absent
+  when:
+    - remove_xorg | bool
+    - cis_level | int >= 2
+  tags:
+    - cis_2.2.2
+    - services
+
+- name: "CIS 2.2.3 | Ensure rsync service is not enabled"
+  systemd:
+    name: rsyncd
+    enabled: no
+    state: stopped
+  when: ansible_facts.services['rsyncd.service'] is defined
+  ignore_errors: yes
+  tags:
+    - cis_2.2.3
+    - services
+
+- name: "CIS 2.2.4 | Ensure Avahi Server is not enabled"
+  systemd:
+    name: avahi-daemon
+    enabled: no
+    state: stopped
+  when: ansible_facts.services['avahi-daemon.service'] is defined
+  ignore_errors: yes
+  tags:
+    - cis_2.2.4
+    - services
+
+- name: "CIS 2.2.5 | Ensure SNMP Server is not enabled"
+  systemd:
+    name: snmpd
+    enabled: no
+    state: stopped
+  when: ansible_facts.services['snmpd.service'] is defined
+  ignore_errors: yes
+  tags:
+    - cis_2.2.5
+    - services
+
+- name: "CIS 2.2.6 | Ensure HTTP Proxy Server is not enabled"
+  systemd:
+    name: squid
+    enabled: no
+    state: stopped
+  when: ansible_facts.services['squid.service'] is defined
+  ignore_errors: yes
+  tags:
+    - cis_2.2.6
+    - services
+
+- name: "CIS 2.2.7 | Ensure Samba is not enabled"
+  systemd:
+    name: smb
+    enabled: no
+    state: stopped
+  when: ansible_facts.services['smb.service'] is defined
+  ignore_errors: yes
+  tags:
+    - cis_2.2.7
+    - services
+
+- name: "CIS 2.2.8 | Ensure IMAP and POP3 server is not enabled"
+  systemd:
+    name: "{{ item }}"
+    enabled: no
+    state: stopped
+  loop:
+    - dovecot
+    - cyrus-imapd
+  when: ansible_facts.services[item + '.service'] is defined
+  ignore_errors: yes
+  tags:
+    - cis_2.2.8
+    - services
+
+- name: "CIS 2.2.9 | Ensure HTTP server is not enabled"
+  systemd:
+    name: httpd
+    enabled: no
+    state: stopped
+  when:
+    - "'webservers' not in group_names"
+    - ansible_facts.services['httpd.service'] is defined
+  ignore_errors: yes
+  tags:
+    - cis_2.2.9
+    - services
+
+- name: "CIS 2.2.10 | Ensure FTP Server is not enabled"
+  systemd:
+    name: vsftpd
+    enabled: no
+    state: stopped
+  when: ansible_facts.services['vsftpd.service'] is defined
+  ignore_errors: yes
+  tags:
+    - cis_2.2.10
+    - services
+
+- name: "CIS 2.2.11 | Ensure DNS Server is not enabled"
+  systemd:
+    name: named
+    enabled: no
+    state: stopped
+  when: ansible_facts.services['named.service'] is defined
+  ignore_errors: yes
+  tags:
+    - cis_2.2.11
+    - services
+
+- name: "CIS 2.2.12 | Ensure NFS is not enabled"
+  systemd:
+    name: nfs-server
+    enabled: no
+    state: stopped
+  when: ansible_facts.services['nfs-server.service'] is defined
+  ignore_errors: yes
+  tags:
+    - cis_2.2.12
+    - services
+
+- name: "CIS 2.2.13 | Ensure RPC is not enabled"
+  systemd:
+    name: rpcbind
+    enabled: no
+    state: stopped
+  when: ansible_facts.services['rpcbind.service'] is defined
+  ignore_errors: yes
+  tags:
+    - cis_2.2.13
+    - services
+
+- name: "CIS 2.3.x | Configure mail transfer agent"
+  block:
+    - name: "CIS 2.3.1 | Ensure mail transfer agent is configured for local-only mode"
+      lineinfile:
+        path: /etc/postfix/main.cf
+        regexp: '^inet_interfaces'
+        line: 'inet_interfaces = loopback-only'
+        state: present
+      when: ansible_facts.services['postfix.service'] is defined
+      notify: restart postfix
+  tags:
+    - cis_2.3
+    - services
+
+################################################################################
+# END OF FILE: roles/rhel_hardening/tasks/services.yml
+################################################################################

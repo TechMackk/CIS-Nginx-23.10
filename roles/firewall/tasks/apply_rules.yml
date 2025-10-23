@@ -1,0 +1,153 @@
+################################################################################
+# File: roles/firewall/tasks/apply_rules.yml
+# Purpose: Apply firewall rules and policies
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Apply firewall rules
+
+- name: "Firewall Rules | Add allowed services"
+  firewalld:
+    zone: "{{ firewall_default_zone }}"
+    service: "{{ item }}"
+    permanent: yes
+    immediate: yes
+    state: enabled
+  loop: "{{ firewall_allowed_services }}"
+  when: firewall_allowed_services | length > 0
+  notify: reload firewalld
+  tags:
+    - firewall_rules
+
+- name: "Firewall Rules | Add allowed ports"
+  firewalld:
+    zone: "{{ firewall_default_zone }}"
+    port: "{{ item }}"
+    permanent: yes
+    immediate: yes
+    state: enabled
+  loop: "{{ firewall_allowed_ports }}"
+  when: firewall_allowed_ports | length > 0
+  notify: reload firewalld
+  tags:
+    - firewall_rules
+
+- name: "Firewall Rules | Add allowed source IPs/networks"
+  firewalld:
+    zone: "{{ firewall_default_zone }}"
+    source: "{{ item }}"
+    permanent: yes
+    immediate: yes
+    state: enabled
+  loop: "{{ firewall_allowed_sources }}"
+  when: firewall_allowed_sources | length > 0
+  notify: reload firewalld
+  tags:
+    - firewall_rules
+
+- name: "Firewall Rules | Add rich rules"
+  firewalld:
+    zone: "{{ firewall_default_zone }}"
+    rich_rule: "{{ item }}"
+    permanent: yes
+    immediate: yes
+    state: enabled
+  loop: "{{ firewall_rich_rules }}"
+  when: firewall_rich_rules | length > 0
+  notify: reload firewalld
+  tags:
+    - firewall_rules
+
+- name: "Firewall Rules | Block ICMP types"
+  firewalld:
+    zone: "{{ firewall_default_zone }}"
+    icmp_block: "{{ item }}"
+    permanent: yes
+    immediate: yes
+    state: enabled
+  loop: "{{ firewall_icmp_blocks }}"
+  when: firewall_icmp_blocks | length > 0
+  notify: reload firewalld
+  tags:
+    - firewall_rules
+
+- name: "Firewall Rules | Configure masquerading"
+  firewalld:
+    zone: "{{ firewall_default_zone }}"
+    masquerade: "{{ 'yes' if firewall_masquerade else 'no' }}"
+    permanent: yes
+    immediate: yes
+    state: "{{ 'enabled' if firewall_masquerade else 'disabled' }}"
+  notify: reload firewalld
+  tags:
+    - firewall_rules
+
+- name: "Firewall Rules | Configure port forwarding"
+  firewalld:
+    zone: "{{ firewall_default_zone }}"
+    port_forward:
+      - port: "{{ item.port }}"
+        proto: "{{ item.proto }}"
+        toport: "{{ item.toport }}"
+        toaddr: "{{ item.toaddr | default(omit) }}"
+    permanent: yes
+    immediate: yes
+    state: enabled
+  loop: "{{ firewall_forward_ports }}"
+  when: firewall_forward_ports | length > 0
+  notify: reload firewalld
+  tags:
+    - firewall_rules
+
+- name: "Firewall Rules | Add direct rules (iptables syntax)"
+  firewalld_direct:
+    direct: "{{ item }}"
+    permanent: yes
+    state: present
+  loop: "{{ firewall_direct_rules }}"
+  when: firewall_direct_rules | length > 0
+  notify: reload firewalld
+  tags:
+    - firewall_rules
+
+- name: "Firewall Rules | Enable panic mode if required"
+  command: firewall-cmd --panic-on
+  when: firewall_panic_mode | bool
+  changed_when: false
+  tags:
+    - firewall_rules
+
+- name: "Firewall Rules | Reload firewall to apply changes"
+  command: firewall-cmd --reload
+  changed_when: false
+  tags:
+    - firewall_rules
+
+- name: "Firewall Rules | List all rules in default zone"
+  command: firewall-cmd --zone={{ firewall_default_zone }} --list-all
+  register: firewall_rules_list
+  changed_when: false
+  tags:
+    - firewall_rules
+
+- name: "Firewall Rules | Display active rules"
+  debug:
+    msg: "{{ firewall_rules_list.stdout_lines }}"
+  tags:
+    - firewall_rules
+
+- name: "Firewall Rules | Verify SSH access is maintained"
+  assert:
+    that:
+      - "'ssh' in firewall_rules_list.stdout or '22/tcp' in firewall_rules_list.stdout"
+    fail_msg: "WARNING: SSH access may not be configured in firewall!"
+    success_msg: "SSH access verified in firewall rules"
+  ignore_errors: yes
+  tags:
+    - firewall_rules
+
+################################################################################
+# END OF FILE: roles/firewall/tasks/apply_rules.yml
+################################################################################

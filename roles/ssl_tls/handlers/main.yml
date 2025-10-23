@@ -1,0 +1,30 @@
+################################################################################
+# File: roles/ssl_tls/handlers/main.yml
+# Purpose: Handlers for SSL/TLS role
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+- name: restart nginx for ssl
+  systemd:
+    name: "{{ nginx_service_name | default('nginx') }}"
+    state: restarted
+  listen: "restart nginx ssl"
+
+- name: reload nginx for ssl
+  systemd:
+    name: "{{ nginx_service_name | default('nginx') }}"
+    state: reloaded
+  listen: "reload nginx ssl"
+
+- name: validate nginx ssl config
+  command: nginx -t
+  register: nginx_ssl_validation
+  changed_when: false
+  failed_when: nginx_ssl_validation.rc != 0
+  listen: "validate nginx ssl"
+
+################################################################################
+# END OF FILE: roles/ssl_tls/handlers/main.yml
+################################################################################

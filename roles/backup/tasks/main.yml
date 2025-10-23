@@ -1,0 +1,121 @@
+################################################################################
+# File: roles/backup/tasks/main.yml
+# Purpose: Main task orchestration for backup role
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Main backup orchestration
+
+- name: "Backup | Display backup banner"
+  debug:
+    msg:
+      - "=========================================="
+      - "Role: Backup - Configuration Files"
+      - "=========================================="
+      - "Host: {{ inventory_hostname }}"
+      - "Backup Destination: {{ backup_destination }}"
+      - "Timestamp: {{ ansible_date_time.iso8601 }}"
+      - "=========================================="
+  tags:
+    - backup
+    - always
+
+- name: "Backup | Verify backup is enabled"
+  assert:
+    that:
+      - backup_enabled | bool
+    fail_msg: "Backup is disabled. Cannot proceed."
+    success_msg: "Backup enabled. Proceeding..."
+  tags:
+    - backup
+    - always
+
+- name: "Backup | Create backup root directory"
+  file:
+    path: "{{ backup_root_dir }}"
+    state: directory
+    mode: '0700'
+    owner: root
+    group: root
+  tags:
+    - backup
+
+- name: "Backup | Create timestamped backup directory"
+  file:
+    path: "{{ backup_destination }}"
+    state: directory
+    mode: '0700'
+    owner: root
+    group: root
+  tags:
+    - backup
+
+- name: "Backup | Execute system configuration backup"
+  include_tasks: backup_configs.yml
+  tags:
+    - backup
+    - backup_configs
+
+- name: "Backup | Execute NGINX configuration backup"
+  include_tasks: backup_nginx.yml
+  when: "'webservers' in group_names"
+  tags:
+    - backup
+    - backup_nginx
+
+- name: "Backup | Create backup manifest"
+  template:
+    src: backup_manifest.j2
+    dest: "{{ backup_manifest_path }}"
+    mode: '0644'
+  when: backup_create_manifest | bool
+  tags:
+    - backup
+
+- name: "Backup | Record last backup timestamp"
+  copy:
+    content: |
+      LAST_BACKUP_TIMESTAMP={{ backup_timestamp }}
+      LAST_BACKUP_PATH={{ backup_destination }}
+      BACKUP_DATE={{ ansible_date_time.iso8601 }}
+      BACKUP_HOST={{ inventory_hostname }}
+      BACKUP_USER={{ ansible_user_id }}
+    dest: "{{ backup_root_dir }}/LAST_BACKUP"
+    mode: '0644'
+  tags:
+    - backup
+
+- name: "Backup | Verify backup directory exists"
+  stat:
+    path: "{{ backup_destination }}"
+  register: backup_verification
+  tags:
+    - backup
+
+- name: "Backup | Display backup statistics"
+  debug:
+    msg:
+      - "=========================================="
+      - "Backup Statistics"
+      - "=========================================="
+      - "Backup Path: {{ backup_destination }}"
+      - "Backup Size: {{ (backup_verification.stat.size | default(0) / 1024 / 1024) | round(2) }} MB"
+      - "Status: {{ 'SUCCESS' if backup_verification.stat.exists else 'FAILED' }}"
+      - "=========================================="
+  tags:
+    - backup
+
+- name: "Backup | Trigger old backup cleanup"
+  debug:
+    msg: "Triggering cleanup of backups older than {{ backup_retention_days }} days"
+  changed_when: true
+  notify: cleanup backups
+  when: backup_cleanup_enabled | bool
+  tags:
+    - backup
+
+################################################################################
+# END OF FILE: roles/backup/tasks/main.yml
+################################################################################

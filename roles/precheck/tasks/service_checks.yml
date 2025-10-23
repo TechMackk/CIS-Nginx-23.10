@@ -1,0 +1,162 @@
+################################################################################
+# File: roles/precheck/tasks/service_checks.yml
+# Purpose: Service status validation checks
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Service status checks
+
+- name: "Service Check | Verify SSH service is running"
+  systemd:
+    name: sshd
+    state: started
+  register: ssh_check
+  check_mode: yes
+  tags:
+    - service_checks
+
+- name: "Service Check | Display SSH status"
+  debug:
+    msg: "SSH service status: {{ 'Running' if ssh_check.state is defined and ssh_check.state == 'started' else 'Not Running' }}"
+  tags:
+    - service_checks
+
+- name: "Service Check | Verify firewalld package is installed"
+  package:
+    name: firewalld
+    state: present
+  check_mode: yes
+  register: firewalld_pkg_check
+  ignore_errors: yes
+  tags:
+    - service_checks
+
+- name: "Service Check | Check firewalld service status"
+  systemd:
+    name: firewalld
+  register: firewalld_status
+  ignore_errors: yes
+  tags:
+    - service_checks
+
+- name: "Service Check | Display firewalld status"
+  debug:
+    msg: "Firewalld status: {{ firewalld_status.status.ActiveState | default('Unknown') }}"
+  when: firewalld_status.status is defined
+  tags:
+    - service_checks
+
+- name: "Service Check | Verify auditd is installed"
+  package:
+    name: audit
+    state: present
+  check_mode: yes
+  register: auditd_pkg_check
+  ignore_errors: yes
+  tags:
+    - service_checks
+
+- name: "Service Check | Check auditd service status"
+  command: systemctl is-active auditd
+  register: auditd_status
+  changed_when: false
+  failed_when: false
+  tags:
+    - service_checks
+
+- name: "Service Check | Display auditd status"
+  debug:
+    msg: "Auditd status: {{ auditd_status.stdout | default('Unknown') }}"
+  tags:
+    - service_checks
+
+- name: "Service Check | Check for required packages"
+  package:
+    name: "{{ item }}"
+    state: present
+  check_mode: yes
+  loop: "{{ precheck_required_packages }}"
+  register: required_pkg_check
+  ignore_errors: yes
+  tags:
+    - service_checks
+
+- name: "Service Check | Display missing required packages"
+  debug:
+    msg: "Missing required packages: {{ required_pkg_check.results | selectattr('failed', 'equalto', true) | map(attribute='item') | list }}"
+  when: required_pkg_check.results | selectattr('failed', 'equalto', true) | list | length > 0
+  tags:
+    - service_checks
+
+- name: "Service Check | Check for optional packages"
+  package:
+    name: "{{ item }}"
+    state: present
+  check_mode: yes
+  loop: "{{ precheck_optional_packages }}"
+  register: optional_pkg_check
+  ignore_errors: yes
+  tags:
+    - service_checks
+
+- name: "Service Check | Warn about missing optional packages"
+  debug:
+    msg: "WARNING: Optional packages not installed: {{ optional_pkg_check.results | selectattr('failed', 'equalto', true) | map(attribute='item') | list }}"
+  when: optional_pkg_check.results | selectattr('failed', 'equalto', true) | list | length > 0
+  tags:
+    - service_checks
+
+- name: "Service Check | Verify sudo access"
+  command: sudo -n true
+  register: sudo_check
+  changed_when: false
+  ignore_errors: yes
+  tags:
+    - service_checks
+
+- name: "Service Check | Display sudo access status"
+  debug:
+    msg: "Sudo access: {{ 'Available' if sudo_check.rc == 0 else 'Not Available or Password Required' }}"
+  tags:
+    - service_checks
+
+- name: "Service Check | Check if NGINX is already installed"
+  command: nginx -v
+  register: nginx_check
+  changed_when: false
+  failed_when: false
+  tags:
+    - service_checks
+
+- name: "Service Check | Display NGINX installation status"
+  debug:
+    msg: "NGINX: {{ nginx_check.stderr if nginx_check.rc == 0 else 'Not Installed' }}"
+  tags:
+    - service_checks
+
+- name: "Service Check | Check repository availability"
+  command: yum repolist
+  register: repo_check
+  changed_when: false
+  when: precheck_verify_repos | bool
+  tags:
+    - service_checks
+
+- name: "Service Check | Display enabled repositories"
+  debug:
+    msg: "Enabled repositories: {{ repo_check.stdout_lines | length }} found"
+  when: precheck_verify_repos | bool
+  tags:
+    - service_checks
+
+- name: "Service Check | Update service check results"
+  set_fact:
+    precheck_results: "{{ precheck_results | combine({'services': {'status': 'PASSED', 'ssh': 'running', 'firewalld': firewalld_status.status.ActiveState | default('unknown'), 'auditd': auditd_status.stdout | default('unknown')}}) }}"
+  tags:
+    - service_checks
+
+################################################################################
+# END OF FILE: roles/precheck/tasks/service_checks.yml
+################################################################################

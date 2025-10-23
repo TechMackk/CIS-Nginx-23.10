@@ -1,0 +1,92 @@
+################################################################################
+# File: pipeline/templates/rollback-stage.yml
+# Purpose: Emergency rollback stage template for ADO pipeline
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+parameters:
+  - name: environment
+    type: string
+    default: 'production'
+  - name: inventory
+    type: string
+    default: 'inventory/production/hosts.yml'
+  - name: backupTimestamp
+    type: string
+    default: 'LAST_BACKUP'
+
+jobs:
+  - job: EmergencyRollback
+    displayName: 'Emergency Rollback - ${{ parameters.environment }}'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+      - task: ManualValidation@0
+        inputs:
+          notifyUsers: 'devops@company.com,oncall@company.com'
+          instructions: |
+            ⚠️ EMERGENCY ROLLBACK CONFIRMATION ⚠️
+            
+            Environment: ${{ parameters.environment }}
+            This will REVERT ALL hardening changes!
+            
+            Approve ONLY if:
+            - Hardening caused critical issues
+            - Change management approval obtained
+            - Incident ticket created
+            
+            Type approval reason in comments.
+        displayName: 'Emergency Approval Required'
+
+      - task: UsePythonVersion@0
+        inputs:
+          versionSpec: '3.9'
+        displayName: 'Setup Python'
+
+      - script: |
+          pip install ansible
+          ansible-galaxy collection install -r requirements.yml
+        displayName: 'Install Ansible'
+
+      - task: DownloadSecureFile@1
+        name: vaultPassword
+        inputs:
+          secureFile: 'ansible-vault-password-${{ parameters.environment }}'
+        displayName: 'Download Vault Password'
+
+      - task: DownloadSecureFile@1
+        name: sshKey
+        inputs:
+          secureFile: 'ansible-ssh-key-${{ parameters.environment }}'
+        displayName: 'Download SSH Key'
+
+      - script: |
+          mkdir -p ~/.ssh
+          cp $(sshKey.secureFilePath) ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+        displayName: 'Setup SSH Key'
+
+      - script: |
+          ansible-playbook -i ${{ parameters.inventory }} \
+            playbooks/rollback.yml \
+            --vault-password-file=$(vaultPassword.secureFilePath) \
+            --extra-vars "backup_timestamp=${{ parameters.backupTimestamp }}" \
+            --extra-vars "rollback_confirmation_required=false" \
+            -vv
+        displayName: 'Execute Emergency Rollback'
+
+      - task: PublishPipelineArtifact@1
+        inputs:
+          targetPath: 'reports'
+          artifact: 'rollback-reports-${{ parameters.environment }}'
+        displayName: 'Publish Rollback Reports'
+
+      - script: |
+          echo "##vso[task.logissue type=warning]Emergency rollback completed on ${{ parameters.environment }}"
+        displayName: 'Log Rollback Event'
+
+################################################################################
+# END OF FILE: pipeline/templates/rollback-stage.yml
+################################################################################

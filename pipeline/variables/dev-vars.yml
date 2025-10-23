@@ -1,0 +1,32 @@
+################################################################################
+# File: pipeline/variables/dev-vars.yml
+# Purpose: Development environment pipeline variables
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+variables:
+  # Environment identification
+  ENVIRONMENT_NAME: 'development'
+  ENVIRONMENT_SHORT: 'dev'
+  
+  # Inventory
+  INVENTORY_PATH: 'inventory/dev/hosts.yml'
+  
+  # Approval requirements
+  REQUIRE_MANUAL_APPROVAL: false
+  
+  # CIS hardening level
+  CIS_LEVEL: 1
+  STRICT_CIS_MODE: false
+  
+  # Backup settings
+  BACKUP_RETENTION_DAYS: 7
+  
+  # Notification
+  NOTIFY_ON_FAILURE: true
+  NOTIFY_ON_SUCCESS: false
+
+################################################################################
+# END OF FILE: pipeline/variables/dev-vars.yml
+################################################################################

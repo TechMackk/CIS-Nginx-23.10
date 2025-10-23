@@ -1,0 +1,39 @@
+################################################################################
+# File: roles/nginx/templates/security.conf.j2
+# Purpose: NGINX security headers configuration
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+# Managed by Ansible - DO NOT EDIT MANUALLY
+# Security headers configuration
+
+########################################################################
+## Security Headers
+########################################################################
+
+{% for header, value in nginx_security_headers.items() %}
+add_header {{ header }} "{{ value }}" always;
+{% endfor %}
+
+########################################################################
+## Additional Security Directives
+########################################################################
+
+# Disable autoindex (directory listing)
+autoindex off;
+
+# Disable SSI (Server Side Includes)
+ssi off;
+
+# Limit methods to only GET, POST, HEAD
+map $request_method $bad_method {
+    default 1;
+    GET 0;
+    HEAD 0;
+    POST 0;
+}
+
+################################################################################
+# END OF FILE: roles/nginx/templates/security.conf.j2
+################################################################################

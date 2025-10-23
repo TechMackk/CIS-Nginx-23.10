@@ -1,0 +1,26 @@
+################################################################################
+# File: inventory/qa/group_vars/vault.yml
+# Purpose: Encrypted secrets for QA environment (Ansible Vault)
+# Environment: QA
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Vault-encrypted secrets for QA environment
+# ENCRYPT THIS FILE: ansible-vault encrypt vault.yml
+
+vault_ansible_user: "ansible"
+vault_ansible_become_password: "CHANGE_ME_AND_ENCRYPT_QA"
+vault_ssl_certificate_password: "CHANGE_ME_AND_ENCRYPT_QA"
+vault_backup_encryption_key: "CHANGE_ME_AND_ENCRYPT_QA"
+vault_monitoring_api_token: "CHANGE_ME_AND_ENCRYPT_QA"
+
+# QA-specific secrets
+vault_qa_db_password: "CHANGE_ME_AND_ENCRYPT_QA"
+vault_qa_api_key: "CHANGE_ME_AND_ENCRYPT_QA"
+vault_modsecurity_audit_log_key: "CHANGE_ME_AND_ENCRYPT_QA"
+
+################################################################################
+# END OF FILE: inventory/qa/group_vars/vault.yml
+################################################################################

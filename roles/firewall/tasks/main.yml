@@ -1,0 +1,88 @@
+################################################################################
+# File: roles/firewall/tasks/main.yml
+# Purpose: Main orchestration for firewall role
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Main firewall orchestration
+
+- name: "Firewall | Display role banner"
+  debug:
+    msg:
+      - "=========================================="
+      - "Role: Firewall Configuration"
+      - "=========================================="
+      - "Host: {{ inventory_hostname }}"
+      - "Service: {{ firewall_service }}"
+      - "Default Zone: {{ firewall_default_zone }}"
+      - "Timestamp: {{ ansible_date_time.iso8601 }}"
+      - "=========================================="
+  tags:
+    - firewall
+    - always
+
+- name: "Firewall | Verify firewall is enabled"
+  assert:
+    that:
+      - firewall_enabled | bool
+    fail_msg: "Firewall is disabled. Set firewall_enabled=true"
+    success_msg: "Firewall enabled. Proceeding..."
+  tags:
+    - firewall
+    - always
+
+- name: "Firewall | Install and configure firewalld"
+  include_tasks: configure_firewalld.yml
+  tags:
+    - firewall
+    - firewall_configure
+
+- name: "Firewall | Apply firewall rules"
+  include_tasks: apply_rules.yml
+  tags:
+    - firewall
+    - firewall_rules
+
+- name: "Firewall | Verify firewalld is running"
+  systemd:
+    name: firewalld
+    state: started
+    enabled: true
+  tags:
+    - firewall
+
+- name: "Firewall | Get active zones"
+  command: firewall-cmd --get-active-zones
+  register: active_zones
+  changed_when: false
+  tags:
+    - firewall
+
+- name: "Firewall | Get default zone"
+  command: firewall-cmd --get-default-zone
+  register: default_zone
+  changed_when: false
+  tags:
+    - firewall
+
+- name: "Firewall | Display completion summary"
+  debug:
+    msg:
+      - "=========================================="
+      - "Firewall Configuration Complete"
+      - "=========================================="
+      - "Host: {{ inventory_hostname }}"
+      - "Service: Running"
+      - "Default Zone: {{ default_zone.stdout }}"
+      - "Active Zones:"
+      - "{{ active_zones.stdout_lines }}"
+      - "=========================================="
+  tags:
+    - firewall
+    - always
+
+################################################################################
+# END OF FILE: roles/firewall/tasks/main.yml
+################################################################################

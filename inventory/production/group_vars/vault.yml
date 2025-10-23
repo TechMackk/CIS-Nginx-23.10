@@ -1,0 +1,48 @@
+################################################################################
+# File: inventory/production/group_vars/vault.yml
+# Purpose: Encrypted secrets for PRODUCTION environment (Ansible Vault)
+# Environment: PRODUCTION
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+# 
+# CRITICAL: This file contains production secrets - must be encrypted
+# WARNING: Unauthorized access is a security incident
+################################################################################
+
+---
+# Vault-encrypted secrets for Production environment
+# MANDATORY: ENCRYPT THIS FILE BEFORE COMMITTING
+# Command: ansible-vault encrypt inventory/production/group_vars/vault.yml
+
+vault_ansible_user: "ansible"
+vault_ansible_become_password: "CHANGE_ME_ENCRYPT_PRODUCTION"
+vault_ssl_certificate_password: "CHANGE_ME_ENCRYPT_PRODUCTION"
+vault_backup_encryption_key: "CHANGE_ME_ENCRYPT_PRODUCTION"
+vault_monitoring_api_token: "CHANGE_ME_ENCRYPT_PRODUCTION"
+
+# Production database credentials
+vault_prod_db_root_password: "CHANGE_ME_ENCRYPT_PRODUCTION"
+vault_prod_db_app_password: "CHANGE_ME_ENCRYPT_PRODUCTION"
+
+# Production API keys
+vault_prod_api_key: "CHANGE_ME_ENCRYPT_PRODUCTION"
+vault_prod_api_secret: "CHANGE_ME_ENCRYPT_PRODUCTION"
+
+# ModSecurity WAF
+vault_modsecurity_audit_log_key: "CHANGE_ME_ENCRYPT_PRODUCTION"
+
+# Cloud credentials
+vault_azure_prod_subscription_id: "CHANGE_ME_ENCRYPT_PRODUCTION"
+vault_azure_prod_client_id: "CHANGE_ME_ENCRYPT_PRODUCTION"
+vault_azure_prod_client_secret: "CHANGE_ME_ENCRYPT_PRODUCTION"
+vault_azure_prod_tenant_id: "CHANGE_ME_ENCRYPT_PRODUCTION"
+
+# SIEM integration
+vault_siem_api_token: "CHANGE_ME_ENCRYPT_PRODUCTION"
+
+# Backup offsite credentials
+vault_backup_azure_storage_key: "CHANGE_ME_ENCRYPT_PRODUCTION"
+
+################################################################################
+# END OF FILE: inventory/production/group_vars/vault.yml
+################################################################################

@@ -1,0 +1,73 @@
+################################################################################
+# File: roles/validation/tasks/validate_firewall.yml
+# Purpose: Firewall configuration validation checks
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Firewall validation
+
+- name: "Validate Firewall | Check firewalld service"
+  systemd:
+    name: firewalld
+  register: firewalld_status
+  changed_when: false
+  failed_when: false
+  tags:
+    - validate_firewall
+
+- name: "Validate Firewall | Record firewalld service check"
+  set_fact:
+    validation_results: "{{ validation_results | combine({'checks': validation_results.checks + [{'name': 'Firewalld Running', 'status': 'PASS' if firewalld_status.status.ActiveState == 'active' else 'FAIL', 'value': firewalld_status.status.ActiveState}]}) }}"
+    validation_results: "{{ validation_results | combine({'total_checks': validation_results.total_checks + 1, 'passed': validation_results.passed + 1 if firewalld_status.status.ActiveState == 'active' else validation_results.passed, 'failed': validation_results.failed + 1 if firewalld_status.status.ActiveState != 'active' else validation_results.failed}) }}"
+  tags:
+    - validate_firewall
+
+- name: "Validate Firewall | Get default zone"
+  command: firewall-cmd --get-default-zone
+  register: default_zone
+  changed_when: false
+  tags:
+    - validate_firewall
+
+- name: "Validate Firewall | Record default zone check"
+  set_fact:
+    validation_results: "{{ validation_results | combine({'checks': validation_results.checks + [{'name': 'Firewall Default Zone', 'status': 'INFO', 'value': default_zone.stdout}]}) }}"
+    validation_results: "{{ validation_results | combine({'total_checks': validation_results.total_checks + 1}) }}"
+  tags:
+    - validate_firewall
+
+- name: "Validate Firewall | Check SSH service allowed"
+  shell: |
+    firewall-cmd --list-services | grep -q ssh
+  register: ssh_allowed
+  changed_when: false
+  failed_when: false
+  tags:
+    - validate_firewall
+
+- name: "Validate Firewall | Record SSH allowed check"
+  set_fact:
+    validation_results: "{{ validation_results | combine({'checks': validation_results.checks + [{'name': 'SSH Service Allowed', 'status': 'PASS' if ssh_allowed.rc == 0 else 'WARN', 'value': 'Allowed' if ssh_allowed.rc == 0 else 'Blocked'}]}) }}"
+    validation_results: "{{ validation_results | combine({'total_checks': validation_results.total_checks + 1, 'passed': validation_results.passed + 1 if ssh_allowed.rc == 0 else validation_results.passed, 'warnings': validation_results.warnings + 1 if ssh_allowed.rc != 0 else validation_results.warnings}) }}"
+  tags:
+    - validate_firewall
+
+- name: "Validate Firewall | List all rules"
+  command: firewall-cmd --list-all
+  register: firewall_rules
+  changed_when: false
+  tags:
+    - validate_firewall
+
+- name: "Validate Firewall | Record firewall rules"
+  set_fact:
+    validation_results: "{{ validation_results | combine({'checks': validation_results.checks + [{'name': 'Firewall Rules Configured', 'status': 'INFO', 'value': firewall_rules.stdout_lines | length | string + ' rules'}]}) }}"
+    validation_results: "{{ validation_results | combine({'total_checks': validation_results.total_checks + 1}) }}"
+  tags:
+    - validate_firewall
+
+################################################################################
+# END OF FILE: roles/validation/tasks/validate_firewall.yml
+################################################################################

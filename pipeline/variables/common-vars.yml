@@ -1,0 +1,36 @@
+################################################################################
+# File: pipeline/variables/common-vars.yml
+# Purpose: Common pipeline variables for all environments
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+variables:
+  # Ansible configuration
+  ANSIBLE_FORCE_COLOR: 'true'
+  ANSIBLE_HOST_KEY_CHECKING: 'False'
+  ANSIBLE_TIMEOUT: 30
+  
+  # Python version
+  PYTHON_VERSION: '3.9'
+  
+  # Artifact retention
+  ARTIFACT_RETENTION_DAYS: 30
+  
+  # Notification settings
+  NOTIFICATION_EMAIL: 'devops@company.com'
+  
+  # Report paths
+  REPORT_DIR: 'reports'
+  LOG_DIR: 'logs'
+  
+  # Compliance thresholds
+  COMPLIANCE_PASS_THRESHOLD: 80
+  
+  # Retry settings
+  MAX_RETRIES: 3
+  RETRY_DELAY: 60
+
+################################################################################
+# END OF FILE: pipeline/variables/common-vars.yml
+################################################################################

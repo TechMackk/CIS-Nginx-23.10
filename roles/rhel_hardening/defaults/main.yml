@@ -1,0 +1,198 @@
+################################################################################
+# File: roles/rhel_hardening/defaults/main.yml
+# Purpose: Default variables for RHEL hardening role
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# CIS hardening level and behavior
+cis_level: 1  # 1 or 2
+cis_apply_all: true
+strict_cis_mode: false
+skip_reboot_required_tasks: false
+
+# SELinux configuration (CIS 1.6.1.x)
+selinux_state: enforcing
+selinux_policy: targeted
+
+# Filesystem hardening (CIS 1.1.x)
+disable_unused_filesystems: true
+unused_filesystems:
+  - cramfs
+  - freevxfs
+  - jffs2
+  - hfs
+  - hfsplus
+  - squashfs
+  - udf
+  - vfat
+
+configure_tmp_mount: true
+tmp_mount_options: "nodev,nosuid,noexec"
+
+configure_var_mount: true
+var_tmp_mount_options: "nodev,nosuid,noexec"
+
+configure_home_mount: true
+home_mount_options: "nodev"
+
+disable_automounting: true
+sticky_bit_world_writable: true
+
+# Services to disable (CIS 2.x)
+disable_unnecessary_services: true
+services_to_disable:
+  - cups
+  - avahi-daemon
+  - rpcbind
+  - rsync
+  - snmpd
+
+# Time synchronization (CIS 2.2.1.x)
+time_sync_enabled: true
+time_sync_service: chronyd  # chronyd or ntpd
+ntp_servers:
+  - 0.rhel.pool.ntp.org
+  - 1.rhel.pool.ntp.org
+
+# X Window System (CIS 2.2.2)
+remove_xorg: false  # Set true for Level 2 on servers
+
+# Network hardening (CIS 3.x)
+disable_ipv6: false  # Set true if IPv6 not used
+network_ipv6_disable_method: sysctl
+
+configure_host_firewall: true
+firewall_service: firewalld
+
+# Kernel network parameters (CIS 3.3.x)
+kernel_network_parameters:
+  # IP forwarding
+  net.ipv4.ip_forward: 0
+  net.ipv6.conf.all.forwarding: 0
+  
+  # Send packet redirects
+  net.ipv4.conf.all.send_redirects: 0
+  net.ipv4.conf.default.send_redirects: 0
+  
+  # Accept source routed packets
+  net.ipv4.conf.all.accept_source_route: 0
+  net.ipv4.conf.default.accept_source_route: 0
+  net.ipv6.conf.all.accept_source_route: 0
+  net.ipv6.conf.default.accept_source_route: 0
+  
+  # Accept ICMP redirects
+  net.ipv4.conf.all.accept_redirects: 0
+  net.ipv4.conf.default.accept_redirects: 0
+  net.ipv6.conf.all.accept_redirects: 0
+  net.ipv6.conf.default.accept_redirects: 0
+  
+  # Secure ICMP redirects
+  net.ipv4.conf.all.secure_redirects: 0
+  net.ipv4.conf.default.secure_redirects: 0
+  
+  # Log suspicious packets
+  net.ipv4.conf.all.log_martians: 1
+  net.ipv4.conf.default.log_martians: 1
+  
+  # Ignore broadcast requests
+  net.ipv4.icmp_echo_ignore_broadcasts: 1
+  
+  # Ignore bogus ICMP responses
+  net.ipv4.icmp_ignore_bogus_error_responses: 1
+  
+  # Reverse path filtering
+  net.ipv4.conf.all.rp_filter: 1
+  net.ipv4.conf.default.rp_filter: 1
+  
+  # TCP SYN cookies
+  net.ipv4.tcp_syncookies: 1
+  
+  # IPv6 router advertisements
+  net.ipv6.conf.all.accept_ra: 0
+  net.ipv6.conf.default.accept_ra: 0
+
+# Logging and auditing (CIS 4.x)
+configure_rsyslog: true
+rsyslog_remote_host: ""  # Set for remote logging
+
+configure_journald: true
+journald_compress: true
+journald_persistent: true
+
+auditd_enabled: true
+auditd_max_log_file: 100  # MB
+auditd_max_log_file_action: keep_logs
+auditd_space_left: 75  # MB
+auditd_space_left_action: email
+auditd_action_mail_acct: root
+auditd_admin_space_left: 50  # MB
+auditd_admin_space_left_action: halt
+
+# Audit rules (CIS 4.1.x)
+auditd_rules_file: /etc/audit/rules.d/cis.rules
+
+# SSH hardening (CIS 5.2.x)
+ssh_protocol: 2
+ssh_log_level: INFO
+ssh_x11_forwarding: "no"
+ssh_max_auth_tries: 3
+ssh_ignore_rhosts: "yes"
+ssh_hostbased_authentication: "no"
+ssh_permit_root_login: "no"
+ssh_permit_empty_passwords: "no"
+ssh_permit_user_environment: "no"
+ssh_ciphers: "chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr"
+ssh_macs: "hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256"
+ssh_kex_algorithms: "curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group14-sha256,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256,diffie-hellman-group-exchange-sha256"
+ssh_client_alive_interval: 300
+ssh_client_alive_count_max: 0
+ssh_login_grace_time: 60
+ssh_max_sessions: 10
+ssh_max_startups: "10:30:100"
+ssh_banner: /etc/issue.net
+
+# PAM configuration (CIS 5.3.x)
+configure_pam: true
+pam_password_quality_requirements:
+  minlen: 14
+  dcredit: -1
+  ucredit: -1
+  ocredit: -1
+  lcredit: -1
+
+pam_lockout_attempts: 5
+pam_lockout_time: 900  # seconds
+pam_password_remember: 5
+
+# Password aging (CIS 5.4.1.x)
+password_max_days: 90
+password_min_days: 7
+password_warn_age: 7
+password_inactive_days: 30
+
+# User shell timeout (CIS 5.4.5)
+shell_timeout: 900  # seconds (15 minutes)
+
+# AIDE configuration (CIS 1.3.x)
+aide_enabled: true
+aide_db_filename: /var/lib/aide/aide.db.gz
+aide_cron_schedule: "0 5 * * *"
+
+# Core dumps (CIS 1.5.1)
+disable_core_dumps: true
+
+# ASLR (CIS 1.5.3)
+enable_aslr: true
+
+# Permissions on critical files (CIS 6.1.x)
+set_file_permissions: true
+
+# System accounts (CIS 6.2.x)
+lock_system_accounts: true
+system_account_shell: /sbin/nologin
+
+################################################################################
+# END OF FILE: roles/rhel_hardening/defaults/main.yml
+################################################################################

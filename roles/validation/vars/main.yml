@@ -1,0 +1,24 @@
+################################################################################
+# File: roles/validation/vars/main.yml
+# Purpose: Role-specific variables (higher precedence)
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Internal tracking variables
+validation_status: "running"
+validation_results:
+  total_checks: 0
+  passed: 0
+  failed: 0
+  warnings: 0
+
+# OpenSCAP packages
+openscap_packages:
+  - openscap-scanner
+  - scap-security-guide
+
+################################################################################
+# END OF FILE: roles/validation/vars/main.yml
+################################################################################

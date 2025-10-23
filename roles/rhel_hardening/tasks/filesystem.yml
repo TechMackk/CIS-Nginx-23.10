@@ -1,0 +1,218 @@
+################################################################################
+# File: roles/rhel_hardening/tasks/filesystem.yml
+# Purpose: CIS Section 1 - Filesystem hardening controls
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# CIS Section 1 - Filesystem Hardening
+
+- name: "CIS 1.1.1.x | Disable unused filesystems"
+  lineinfile:
+    path: /etc/modprobe.d/cis-disable-filesystems.conf
+    line: "install {{ item }} /bin/true"
+    create: yes
+    owner: root
+    group: root
+    mode: '0644'
+  loop: "{{ unused_filesystems }}"
+  when: disable_unused_filesystems | bool
+  tags:
+    - cis_1.1.1
+    - filesystem
+
+- name: "CIS 1.1.2 | Ensure /tmp is configured"
+  mount:
+    path: /tmp
+    src: tmpfs
+    fstype: tmpfs
+    opts: "{{ tmp_mount_options }}"
+    state: mounted
+  when: configure_tmp_mount | bool
+  tags:
+    - cis_1.1.2
+    - filesystem
+
+- name: "CIS 1.1.6 | Ensure /var/tmp mount options"
+  mount:
+    path: /var/tmp
+    src: /tmp
+    fstype: none
+    opts: "bind,{{ var_tmp_mount_options }}"
+    state: mounted
+  when: configure_var_mount | bool
+  tags:
+    - cis_1.1.6
+    - filesystem
+
+- name: "CIS 1.1.22 | Ensure sticky bit on world-writable directories"
+  shell: |
+    df --local -P | awk '{if (NR!=1) print $6}' | xargs -I '{}' find '{}' -xdev -type d \( -perm -0002 -a ! -perm -1000 \) -exec chmod a+t {} \;
+  when: sticky_bit_world_writable | bool
+  changed_when: false
+  tags:
+    - cis_1.1.22
+    - filesystem
+
+- name: "CIS 1.1.23 | Disable automounting"
+  systemd:
+    name: autofs
+    enabled: no
+    state: stopped
+  when:
+    - disable_automounting | bool
+    - ansible_facts.services['autofs.service'] is defined
+  ignore_errors: yes
+  tags:
+    - cis_1.1.23
+    - filesystem
+
+- name: "CIS 1.1.24 | Disable USB storage"
+  lineinfile:
+    path: /etc/modprobe.d/cis-usb-storage.conf
+    line: "install usb-storage /bin/true"
+    create: yes
+    owner: root
+    group: root
+    mode: '0644'
+  when: cis_level | int >= 2
+  tags:
+    - cis_1.1.24
+    - filesystem
+
+- name: "CIS 1.3.1 | Ensure AIDE is installed"
+  package:
+    name: aide
+    state: present
+  when: aide_enabled | bool
+  tags:
+    - cis_1.3.1
+    - filesystem
+    - aide
+
+- name: "CIS 1.3.2 | Ensure filesystem integrity is checked"
+  cron:
+    name: "AIDE filesystem integrity check"
+    cron_file: cis-aide
+    user: root
+    minute: "{{ aide_cron_schedule.split()[0] }}"
+    hour: "{{ aide_cron_schedule.split()[1] }}"
+    day: "{{ aide_cron_schedule.split()[2] }}"
+    month: "{{ aide_cron_schedule.split()[3] }}"
+    weekday: "{{ aide_cron_schedule.split()[4] }}"
+    job: "/usr/sbin/aide --check"
+  when: aide_enabled | bool
+  tags:
+    - cis_1.3.2
+    - filesystem
+    - aide
+
+- name: "CIS 1.5.1 | Ensure core dumps are restricted"
+  block:
+    - name: "CIS 1.5.1 | Set hard core limit"
+      pam_limits:
+        domain: '*'
+        limit_type: hard
+        limit_item: core
+        value: '0'
+
+    - name: "CIS 1.5.1 | Disable core dumps via sysctl"
+      sysctl:
+        name: fs.suid_dumpable
+        value: '0'
+        state: present
+        reload: yes
+
+    - name: "CIS 1.5.1 | Disable core dumps in systemd"
+      lineinfile:
+        path: /etc/systemd/coredump.conf
+        regexp: '^#?Storage='
+        line: 'Storage=none'
+        state: present
+      notify: restart systemd-journald
+  when: disable_core_dumps | bool
+  tags:
+    - cis_1.5.1
+    - filesystem
+
+- name: "CIS 1.5.3 | Ensure address space layout randomization (ASLR) is enabled"
+  sysctl:
+    name: kernel.randomize_va_space
+    value: '2'
+    state: present
+    reload: yes
+  when: enable_aslr | bool
+  tags:
+    - cis_1.5.3
+    - filesystem
+
+- name: "CIS 1.6.1.1 | Ensure SELinux is installed"
+  package:
+    name:
+      - libselinux
+      - policycoreutils
+    state: present
+  tags:
+    - cis_1.6.1.1
+    - filesystem
+    - selinux
+
+- name: "CIS 1.6.1.2 | Ensure SELinux is not disabled in bootloader"
+  replace:
+    path: /etc/default/grub
+    regexp: '(selinux|enforcing)=0'
+    replace: ''
+  notify: update grub
+  tags:
+    - cis_1.6.1.2
+    - filesystem
+    - selinux
+
+- name: "CIS 1.6.1.3-5 | Configure SELinux state and policy"
+  selinux:
+    state: "{{ selinux_state }}"
+    policy: "{{ selinux_policy }}"
+  tags:
+    - cis_1.6.1.3
+    - cis_1.6.1.4
+    - cis_1.6.1.5
+    - filesystem
+    - selinux
+
+- name: "CIS 1.7.1.x | Configure warning banners"
+  block:
+    - name: "CIS 1.7.1.1 | Set /etc/motd"
+      copy:
+        content: |
+          Authorized access only!
+          All activity may be monitored and reported.
+        dest: /etc/motd
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: "CIS 1.7.1.2 | Set /etc/issue"
+      copy:
+        content: |
+          Authorized access only!
+        dest: /etc/issue
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: "CIS 1.7.1.3 | Set /etc/issue.net"
+      copy:
+        content: |
+          Authorized access only!
+        dest: /etc/issue.net
+        owner: root
+        group: root
+        mode: '0644'
+  tags:
+    - cis_1.7.1
+    - filesystem
+
+################################################################################
+# END OF FILE: roles/rhel_hardening/tasks/filesystem.yml
+################################################################################

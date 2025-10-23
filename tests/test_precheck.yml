@@ -1,0 +1,90 @@
+################################################################################
+# File: tests/test_precheck.yml
+# Purpose: Test precheck role functionality
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+#
+# Usage: ansible-playbook -i inventory/dev/hosts.yml tests/test_precheck.yml
+################################################################################
+
+---
+- name: "Test: Precheck Role Validation"
+  hosts: all
+  gather_facts: true
+  become: false
+  
+  tasks:
+    - name: "Test | Display test banner"
+      debug:
+        msg:
+          - "=========================================="
+          - "Precheck Role Test Suite"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "=========================================="
+    
+    - name: "Test | Verify OS distribution"
+      assert:
+        that:
+          - ansible_distribution in ['RedHat', 'CentOS', 'Rocky', 'AlmaLinux']
+        success_msg: "✓ OS distribution supported: {{ ansible_distribution }}"
+        fail_msg: "✗ OS distribution not supported: {{ ansible_distribution }}"
+    
+    - name: "Test | Verify OS version"
+      assert:
+        that:
+          - ansible_distribution_major_version in ['8', '9']
+        success_msg: "✓ OS version supported: {{ ansible_distribution_version }}"
+        fail_msg: "✗ OS version not supported: {{ ansible_distribution_version }}"
+    
+    - name: "Test | Verify minimum memory"
+      assert:
+        that:
+          - ansible_memtotal_mb >= 2048
+        success_msg: "✓ Sufficient memory: {{ ansible_memtotal_mb }}MB"
+        fail_msg: "✗ Insufficient memory: {{ ansible_memtotal_mb }}MB (required: 2048MB)"
+    
+    - name: "Test | Verify minimum disk space"
+      assert:
+        that:
+          - ansible_mounts | selectattr('mount', 'equalto', '/') | map(attribute='size_available') | first > 10737418240
+        success_msg: "✓ Sufficient disk space"
+        fail_msg: "✗ Insufficient disk space on /"
+    
+    - name: "Test | Verify Python availability"
+      command: python3 --version
+      register: python_version
+      changed_when: false
+      failed_when: python_version.rc != 0
+    
+    - name: "Test | Display Python version"
+      debug:
+        msg: "✓ Python installed: {{ python_version.stdout }}"
+    
+    - name: "Test | Verify package manager"
+      command: yum --version
+      register: yum_version
+      changed_when: false
+      failed_when: yum_version.rc != 0
+    
+    - name: "Test | Verify systemd"
+      command: systemctl --version
+      register: systemd_version
+      changed_when: false
+      failed_when: systemd_version.rc != 0
+    
+    - name: "Test | Display test summary"
+      debug:
+        msg:
+          - "=========================================="
+          - "Precheck Test Results: PASSED"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Memory: {{ ansible_memtotal_mb }}MB"
+          - "Python: {{ python_version.stdout }}"
+          - "=========================================="
+
+################################################################################
+# END OF FILE: tests/test_precheck.yml
+################################################################################

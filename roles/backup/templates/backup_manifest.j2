@@ -1,0 +1,74 @@
+################################################################################
+# File: roles/backup/templates/backup_manifest.j2
+# Purpose: Backup manifest template for tracking backup contents
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+================================================================================
+                          BACKUP MANIFEST
+================================================================================
+
+Backup Information:
+------------------
+Timestamp:          {{ ansible_date_time.iso8601 }}
+Hostname:           {{ inventory_hostname }}
+Environment:        {{ environment_name | default('undefined') }}
+Backup Path:        {{ backup_destination }}
+Executed By:        {{ ansible_user_id }}
+
+System Information:
+------------------
+OS:                 {{ ansible_distribution }} {{ ansible_distribution_version }}
+Kernel:             {{ ansible_kernel }}
+Architecture:       {{ ansible_architecture }}
+IP Address:         {{ ansible_default_ipv4.address | default('N/A') }}
+
+Backup Contents:
+---------------
+{% if backup_system_configs is defined %}
+System Configurations:
+{% for config in backup_system_configs %}
+  - {{ config }}
+{% endfor %}
+{% endif %}
+
+{% if backup_nginx_configs is defined and 'webservers' in group_names %}
+NGINX Configurations:
+{% for config in backup_nginx_configs %}
+  - {{ config }}
+{% endfor %}
+{% endif %}
+
+{% if backup_firewall_configs is defined %}
+Firewall Configurations:
+{% for config in backup_firewall_configs %}
+  - {{ config }}
+{% endfor %}
+{% endif %}
+
+Backup Options:
+--------------
+Compression:        {{ 'Enabled' if backup_compress else 'Disabled' }}
+Compression Format: {{ backup_compression_format if backup_compress else 'N/A' }}
+Verification:       {{ 'Enabled' if backup_verify else 'Disabled' }}
+Retention Days:     {{ backup_retention_days }}
+
+Notes:
+------
+This backup was created automatically before CIS hardening operations.
+Use the rollback playbook to restore from this backup if needed.
+
+Restore Command:
+---------------
+ansible-playbook -i inventory/{{ environment_name | default('dev') }}/hosts.yml \
+  playbooks/rollback.yml \
+  --extra-vars "backup_timestamp={{ backup_timestamp }}"
+
+================================================================================
+                          END OF MANIFEST
+================================================================================
+
+################################################################################
+# END OF FILE: roles/backup/templates/backup_manifest.j2
+################################################################################

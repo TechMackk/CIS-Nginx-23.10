@@ -1,0 +1,192 @@
+################################################################################
+# File: roles/rhel_hardening/tasks/access_control.yml
+# Purpose: CIS Section 5 - Access, authentication and authorization
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# CIS Section 5 - Access Control
+
+- name: "CIS 5.1.x | Configure cron"
+  block:
+    - name: "CIS 5.1.1 | Ensure cron daemon is enabled"
+      systemd:
+        name: crond
+        enabled: yes
+        state: started
+
+    - name: "CIS 5.1.2-8 | Set permissions on cron files"
+      file:
+        path: "{{ item.path }}"
+        owner: root
+        group: root
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: '/etc/crontab', mode: '0600' }
+        - { path: '/etc/cron.hourly', mode: '0700' }
+        - { path: '/etc/cron.daily', mode: '0700' }
+        - { path: '/etc/cron.weekly', mode: '0700' }
+        - { path: '/etc/cron.monthly', mode: '0700' }
+        - { path: '/etc/cron.d', mode: '0700' }
+
+    - name: "CIS 5.1.9 | Ensure at/cron is restricted to authorized users"
+      file:
+        path: "{{ item }}"
+        state: touch
+        owner: root
+        group: root
+        mode: '0600'
+      loop:
+        - /etc/cron.allow
+        - /etc/at.allow
+  tags:
+    - cis_5.1
+    - access_control
+    - cron
+
+- name: "CIS 5.2.x | SSH Server Configuration"
+  block:
+    - name: "CIS 5.2 | Deploy hardened SSH configuration"
+      template:
+        src: sshd_config.j2
+        dest: /etc/ssh/sshd_config
+        owner: root
+        group: root
+        mode: '0600'
+        validate: /usr/sbin/sshd -t -f %s
+        backup: yes
+      notify: restart sshd
+
+    - name: "CIS 5.2.x | Set permissions on SSH private host keys"
+      shell: find /etc/ssh -type f -name 'ssh_host_*_key' -exec chmod 0600 {} \;
+      changed_when: false
+
+    - name: "CIS 5.2.x | Set permissions on SSH public host keys"
+      shell: find /etc/ssh -type f -name 'ssh_host_*_key.pub' -exec chmod 0644 {} \;
+      changed_when: false
+  tags:
+    - cis_5.2
+    - access_control
+    - ssh
+
+- name: "CIS 5.3.x | Configure PAM"
+  block:
+    - name: "CIS 5.3.1 | Ensure password creation requirements are configured"
+      lineinfile:
+        path: /etc/security/pwquality.conf
+        regexp: "^{{ item.key }}"
+        line: "{{ item.key }} = {{ item.value }}"
+        state: present
+      loop:
+        - { key: 'minlen', value: "{{ pam_password_quality_requirements.minlen }}" }
+        - { key: 'dcredit', value: "{{ pam_password_quality_requirements.dcredit }}" }
+        - { key: 'ucredit', value: "{{ pam_password_quality_requirements.ucredit }}" }
+        - { key: 'ocredit', value: "{{ pam_password_quality_requirements.ocredit }}" }
+        - { key: 'lcredit', value: "{{ pam_password_quality_requirements.lcredit }}" }
+      when: configure_pam | bool
+
+    - name: "CIS 5.3.2 | Ensure lockout for failed password attempts is configured"
+      pamd:
+        name: "{{ item }}"
+        type: auth
+        control: required
+        module_path: pam_faillock.so
+        new_type: auth
+        new_control: required
+        new_module_path: pam_faillock.so
+        module_arguments:
+          - "deny={{ pam_lockout_attempts }}"
+          - "unlock_time={{ pam_lockout_time }}"
+        state: updated
+      loop:
+        - system-auth
+        - password-auth
+      when: configure_pam | bool
+
+    - name: "CIS 5.3.3 | Ensure password reuse is limited"
+      pamd:
+        name: "{{ item }}"
+        type: password
+        control: required
+        module_path: pam_pwhistory.so
+        new_type: password
+        new_control: required
+        new_module_path: pam_pwhistory.so
+        module_arguments: "remember={{ pam_password_remember }}"
+        state: updated
+      loop:
+        - system-auth
+        - password-auth
+      when: configure_pam | bool
+  when: configure_pam | bool
+  tags:
+    - cis_5.3
+    - access_control
+    - pam
+
+- name: "CIS 5.4.1.x | Set password aging configuration"
+  block:
+    - name: "CIS 5.4.1.1 | Configure /etc/login.defs"
+      template:
+        src: login.defs.j2
+        dest: /etc/login.defs
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+
+    - name: "CIS 5.4.1.2-5 | Apply password aging to existing users"
+      shell: |
+        for user in $(awk -F: '($3>=1000 && $3<65534) {print $1}' /etc/passwd); do
+          chage --maxdays {{ password_max_days }} $user
+          chage --mindays {{ password_min_days }} $user
+          chage --warndays {{ password_warn_age }} $user
+          chage --inactive {{ password_inactive_days }} $user
+        done
+      changed_when: false
+  tags:
+    - cis_5.4.1
+    - access_control
+    - passwords
+
+- name: "CIS 5.4.5 | Ensure default user shell timeout is configured"
+  blockinfile:
+    path: /etc/profile.d/cis-timeout.sh
+    create: yes
+    owner: root
+    group: root
+    mode: '0644'
+    block: |
+      # CIS 5.4.5 - Set shell timeout
+      TMOUT={{ shell_timeout }}
+      readonly TMOUT
+      export TMOUT
+  tags:
+    - cis_5.4.5
+    - access_control
+
+- name: "CIS 5.5 | Ensure root login is restricted to system console"
+  copy:
+    content: "console"
+    dest: /etc/securetty
+    owner: root
+    group: root
+    mode: '0600'
+  tags:
+    - cis_5.5
+    - access_control
+
+- name: "CIS 5.6 | Ensure access to the su command is restricted"
+  lineinfile:
+    path: /etc/pam.d/su
+    regexp: '^#?auth\s+required\s+pam_wheel.so'
+    line: 'auth required pam_wheel.so use_uid'
+    state: present
+  tags:
+    - cis_5.6
+    - access_control
+
+################################################################################
+# END OF FILE: roles/rhel_hardening/tasks/access_control.yml
+################################################################################

@@ -1,0 +1,167 @@
+################################################################################
+# File: roles/precheck/tasks/system_checks.yml
+# Purpose: System-level validation checks
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# System validation checks
+
+- name: "System Check | Verify OS distribution"
+  assert:
+    that:
+      - ansible_distribution in precheck_supported_os
+    fail_msg: "Unsupported OS: {{ ansible_distribution }}. Supported: {{ precheck_supported_os | join(', ') }}"
+    success_msg: "OS check passed: {{ ansible_distribution }}"
+  register: os_check
+  ignore_errors: "{{ not precheck_fail_on_error }}"
+  tags:
+    - system_checks
+
+- name: "System Check | Verify OS version"
+  assert:
+    that:
+      - ansible_distribution_major_version in precheck_supported_versions
+    fail_msg: "Unsupported OS version: {{ ansible_distribution_version }}. Supported: {{ precheck_supported_versions | join(', ') }}"
+    success_msg: "OS version check passed: {{ ansible_distribution_version }}"
+  register: version_check
+  ignore_errors: "{{ not precheck_fail_on_error }}"
+  tags:
+    - system_checks
+
+- name: "System Check | Verify minimum memory"
+  assert:
+    that:
+      - ansible_memtotal_mb >= precheck_min_memory_mb
+    fail_msg: "Insufficient memory: {{ ansible_memtotal_mb }}MB. Required: {{ precheck_min_memory_mb }}MB"
+    success_msg: "Memory check passed: {{ ansible_memtotal_mb }}MB available"
+  register: memory_check
+  ignore_errors: "{{ not precheck_fail_on_error }}"
+  tags:
+    - system_checks
+
+- name: "System Check | Check disk space on critical mounts"
+  assert:
+    that:
+      - item.size_available > (precheck_min_disk_gb * 1024 * 1024 * 1024)
+    fail_msg: "Insufficient disk space on {{ item.mount }}: {{ (item.size_available / 1024 / 1024 / 1024) | round(2) }}GB. Required: {{ precheck_min_disk_gb }}GB"
+    success_msg: "Disk space check passed on {{ item.mount }}: {{ (item.size_available / 1024 / 1024 / 1024) | round(2) }}GB available"
+  loop: "{{ ansible_mounts | selectattr('mount', 'in', precheck_disk_mounts_to_check) | list }}"
+  register: disk_check
+  ignore_errors: "{{ not precheck_fail_on_error }}"
+  when: item.mount in precheck_disk_mounts_to_check
+  tags:
+    - system_checks
+
+- name: "System Check | Verify CPU cores"
+  assert:
+    that:
+      - ansible_processor_vcpus >= precheck_min_cpu_cores
+    fail_msg: "Insufficient CPU cores: {{ ansible_processor_vcpus }}. Required: {{ precheck_min_cpu_cores }}"
+    success_msg: "CPU check passed: {{ ansible_processor_vcpus }} cores available"
+  register: cpu_check
+  ignore_errors: "{{ not precheck_fail_on_error }}"
+  tags:
+    - system_checks
+
+- name: "System Check | Verify SELinux is installed"
+  command: getenforce
+  register: selinux_check
+  changed_when: false
+  failed_when: false
+  when: precheck_verify_selinux | bool
+  tags:
+    - system_checks
+
+- name: "System Check | Display SELinux status"
+  debug:
+    msg: "SELinux Status: {{ selinux_check.stdout | default('Not Available') }}"
+  when: precheck_verify_selinux | bool
+  tags:
+    - system_checks
+
+- name: "System Check | Verify hostname resolution"
+  command: hostname -f
+  register: hostname_check
+  changed_when: false
+  failed_when: hostname_check.rc != 0
+  tags:
+    - system_checks
+
+- name: "System Check | Check internet connectivity"
+  uri:
+    url: "{{ item }}"
+    method: GET
+    timeout: 10
+    validate_certs: yes
+  loop: "{{ precheck_test_urls }}"
+  register: internet_check
+  ignore_errors: yes
+  when: precheck_check_internet | bool
+  tags:
+    - system_checks
+
+- name: "System Check | Warn if internet connectivity failed"
+  debug:
+    msg: "WARNING: Internet connectivity check failed. Repository access may be limited."
+  when:
+    - precheck_check_internet | bool
+    - internet_check is defined
+    - internet_check is failed
+  tags:
+    - system_checks
+
+- name: "System Check | Verify package manager is functional"
+  command: yum --version
+  register: yum_check
+  changed_when: false
+  failed_when: yum_check.rc != 0
+  tags:
+    - system_checks
+
+- name: "System Check | Check for system updates"
+  yum:
+    list: updates
+  register: updates_check
+  ignore_errors: yes
+  tags:
+    - system_checks
+
+- name: "System Check | Display available updates count"
+  debug:
+    msg: "Available updates: {{ updates_check.results | length if updates_check.results is defined else 0 }}"
+  when: updates_check is defined
+  tags:
+    - system_checks
+
+- name: "System Check | Verify time synchronization"
+  command: timedatectl status
+  register: time_sync_check
+  changed_when: false
+  when: precheck_verify_time_sync | bool
+  tags:
+    - system_checks
+
+- name: "System Check | Check if chronyd or ntpd is running"
+  systemd:
+    name: "{{ item }}"
+    state: started
+  loop:
+    - chronyd
+    - ntpd
+  register: ntp_service_check
+  ignore_errors: yes
+  when: precheck_verify_time_sync | bool
+  tags:
+    - system_checks
+
+- name: "System Check | Update system check results"
+  set_fact:
+    precheck_results: "{{ precheck_results | combine({'system': {'status': 'PASSED', 'os': ansible_distribution, 'version': ansible_distribution_version, 'memory_mb': ansible_memtotal_mb, 'cpu_cores': ansible_processor_vcpus}}) }}"
+  tags:
+    - system_checks
+
+################################################################################
+# END OF FILE: roles/precheck/tasks/system_checks.yml
+################################################################################

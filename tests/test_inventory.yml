@@ -1,0 +1,90 @@
+################################################################################
+# File: tests/test_inventory.yml
+# Purpose: Test inventory file validity across all environments
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+#
+# Usage: ansible-playbook tests/test_inventory.yml
+################################################################################
+
+---
+- name: "Test: Inventory Validation"
+  hosts: localhost
+  gather_facts: false
+  
+  vars:
+    environments:
+      - dev
+      - test
+      - qa
+      - production
+  
+  tasks:
+    - name: "Test | Display test banner"
+      debug:
+        msg:
+          - "=========================================="
+          - "Inventory Validation Tests"
+          - "=========================================="
+          - "Testing inventories for all environments"
+          - "=========================================="
+    
+    - name: "Test | Validate inventory file exists for each environment"
+      stat:
+        path: "inventory/{{ item }}/hosts.yml"
+      register: inventory_files
+      loop: "{{ environments }}"
+      failed_when: not inventory_files.results[ansible_loop.index0].stat.exists
+    
+    - name: "Test | Display inventory file status"
+      debug:
+        msg: "✓ Inventory exists: inventory/{{ item.item }}/hosts.yml"
+      loop: "{{ inventory_files.results }}"
+      when: item.stat.exists
+    
+    - name: "Test | Validate inventory syntax"
+      command: ansible-inventory -i inventory/{{ item }}/hosts.yml --list
+      register: inventory_validation
+      changed_when: false
+      failed_when: inventory_validation.rc != 0
+      loop: "{{ environments }}"
+    
+    - name: "Test | Count hosts in each environment"
+      shell: ansible-inventory -i inventory/{{ item }}/hosts.yml --list | jq -r '.all.hosts | length'
+      register: host_counts
+      changed_when: false
+      loop: "{{ environments }}"
+    
+    - name: "Test | Display host counts"
+      debug:
+        msg: "Environment {{ item.item }}: {{ item.stdout }} hosts"
+      loop: "{{ host_counts.results }}"
+    
+    - name: "Test | Verify group_vars exist"
+      stat:
+        path: "inventory/{{ item }}/group_vars/all.yml"
+      register: group_vars
+      failed_when: not group_vars.results[ansible_loop.index0].stat.exists
+      loop: "{{ environments }}"
+    
+    - name: "Test | Verify webservers group exists"
+      shell: ansible-inventory -i inventory/{{ item }}/hosts.yml --list | jq -r '.all.children.webservers'
+      register: webservers_check
+      changed_when: false
+      failed_when: webservers_check.stdout == "null"
+      loop: "{{ environments }}"
+    
+    - name: "Test | Display test summary"
+      debug:
+        msg:
+          - "=========================================="
+          - "Inventory Test Results: PASSED"
+          - "=========================================="
+          - "All inventory files are valid"
+          - "All required groups exist"
+          - "All group_vars files present"
+          - "=========================================="
+
+################################################################################
+# END OF FILE: tests/test_inventory.yml
+################################################################################

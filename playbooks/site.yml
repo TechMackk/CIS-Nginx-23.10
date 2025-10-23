@@ -1,0 +1,178 @@
+################################################################################
+# File: playbooks/site.yml
+# Purpose: Master orchestration playbook for CIS hardening automation
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+#
+# Description:
+#   Master playbook that orchestrates the complete CIS hardening workflow.
+#   Executes all stages in proper sequence with rollback support on failure.
+#
+# Usage:
+#   Full execution:     ansible-playbook -i inventory/dev/hosts.yml playbooks/site.yml
+#   Specific stages:    ansible-playbook -i inventory/dev/hosts.yml playbooks/site.yml --tags precheck,backup
+#   Skip stages:        ansible-playbook -i inventory/dev/hosts.yml playbooks/site.yml --skip-tags harden
+#   Check mode:         ansible-playbook -i inventory/dev/hosts.yml playbooks/site.yml --check
+#   Limit hosts:        ansible-playbook -i inventory/dev/hosts.yml playbooks/site.yml --limit dev-web-01
+#
+# Execution Flow:
+#   1. Pre-Check    → System readiness validation
+#   2. Backup       → Configuration backup
+#   3. Harden RHEL  → OS-level CIS controls
+#   4. Harden NGINX → Web server hardening
+#   5. SSL/TLS      → Certificate and encryption setup
+#   6. Firewall     → Network security rules
+#   7. Validate     → Compliance verification
+#   8. Rollback     → Emergency restore (manual trigger only)
+################################################################################
+
+---
+- name: "CIS Hardening Automation - Master Orchestration"
+  hosts: all
+  gather_facts: true
+  become: true
+  
+  vars:
+    # Execution metadata
+    execution_timestamp: "{{ ansible_date_time.iso8601 }}"
+    execution_user: "{{ ansible_user_id }}"
+    playbook_version: "1.0.0"
+    
+    # Failure handling
+    abort_on_failure: true
+    enable_rollback_on_failure: false  # Set to true to auto-rollback on errors
+    
+    # Reporting
+    report_dir: "reports"
+    report_file: "cis-hardening-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.json"
+
+  pre_tasks:
+    - name: "Display execution banner"
+      debug:
+        msg:
+          - "=========================================="
+          - "CIS Hardening Automation - Site Playbook"
+          - "=========================================="
+          - "Execution Time: {{ execution_timestamp }}"
+          - "Target Environment: {{ environment_name | default('undefined') }}"
+          - "Target Hosts: {{ ansible_play_hosts | length }}"
+          - "Executed By: {{ execution_user }}"
+          - "=========================================="
+      run_once: true
+      tags: always
+
+    - name: "Verify Ansible version compatibility"
+      assert:
+        that:
+          - ansible_version.full is version('2.9', '>=')
+        fail_msg: "Ansible version 2.9 or higher is required. Current: {{ ansible_version.full }}"
+        success_msg: "Ansible version check passed: {{ ansible_version.full }}"
+      run_once: true
+      tags: always
+
+    - name: "Create report directory on control node"
+      file:
+        path: "{{ report_dir }}"
+        state: directory
+        mode: '0755'
+      delegate_to: localhost
+      run_once: true
+      tags: always
+
+  tasks:
+    # Stage 1: Pre-Check
+    - name: "Import pre-check playbook"
+      import_playbook: precheck.yml
+      tags:
+        - precheck
+        - always
+      when: "'precheck' not in ansible_skip_tags | default([])"
+
+    # Stage 2: Backup
+    - name: "Import backup playbook"
+      import_playbook: backup.yml
+      tags:
+        - backup
+      when: "'backup' not in ansible_skip_tags | default([])"
+
+    # Stage 3: RHEL Hardening
+    - name: "Import RHEL hardening playbook"
+      import_playbook: harden_rhel.yml
+      tags:
+        - harden
+        - harden_rhel
+      when: "'harden' not in ansible_skip_tags | default([])"
+
+    # Stage 4: NGINX Hardening
+    - name: "Import NGINX hardening playbook"
+      import_playbook: harden_nginx.yml
+      tags:
+        - harden
+        - harden_nginx
+      when: "'harden' not in ansible_skip_tags | default([])"
+
+    # Stage 5: SSL/TLS Configuration
+    - name: "Import SSL/TLS playbook"
+      import_playbook: ssl_tls.yml
+      tags:
+        - ssl
+        - tls
+      when: "'ssl' not in ansible_skip_tags | default([])"
+
+    # Stage 6: Firewall Configuration
+    - name: "Import firewall playbook"
+      import_playbook: firewall.yml
+      tags:
+        - firewall
+      when: "'firewall' not in ansible_skip_tags | default([])"
+
+    # Stage 7: Validation
+    - name: "Import validation playbook"
+      import_playbook: validate.yml
+      tags:
+        - validate
+      when: "'validate' not in ansible_skip_tags | default([])"
+
+  post_tasks:
+    - name: "Generate execution summary"
+      debug:
+        msg:
+          - "=========================================="
+          - "CIS Hardening Execution Complete"
+          - "=========================================="
+          - "Environment: {{ environment_name | default('undefined') }}"
+          - "Total Hosts: {{ ansible_play_hosts | length }}"
+          - "Execution Time: {{ execution_timestamp }}"
+          - "Status: SUCCESS"
+          - "=========================================="
+      run_once: true
+      tags: always
+
+    - name: "Save execution metadata"
+      copy:
+        content: |
+          {
+            "execution_timestamp": "{{ execution_timestamp }}",
+            "environment": "{{ environment_name | default('undefined') }}",
+            "playbook_version": "{{ playbook_version }}",
+            "target_hosts": {{ ansible_play_hosts | to_json }},
+            "executed_by": "{{ execution_user }}",
+            "status": "SUCCESS"
+          }
+        dest: "{{ report_dir }}/execution-{{ ansible_date_time.epoch }}.json"
+      delegate_to: localhost
+      run_once: true
+      tags: always
+
+  # Rollback handler (manual trigger only)
+  handlers:
+    - name: "Trigger emergency rollback"
+      import_playbook: rollback.yml
+      tags:
+        - rollback
+        - never
+      listen: "rollback"
+
+################################################################################
+# END OF FILE: playbooks/site.yml
+################################################################################

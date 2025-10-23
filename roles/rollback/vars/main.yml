@@ -1,0 +1,15 @@
+################################################################################
+# File: roles/rollback/vars/main.yml
+# Purpose: Role-specific variables (higher precedence)
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Internal tracking
+rollback_status: "pending"
+rollback_timestamp: "{{ ansible_date_time.iso8601 }}"
+
+################################################################################
+# END OF FILE: roles/rollback/vars/main.yml
+################################################################################

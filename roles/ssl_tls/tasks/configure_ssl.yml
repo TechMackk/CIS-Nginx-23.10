@@ -1,0 +1,119 @@
+################################################################################
+# File: roles/ssl_tls/tasks/configure_ssl.yml
+# Purpose: Configure SSL/TLS settings for NGINX
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# SSL/TLS configuration
+
+- name: "SSL Config | Generate DH parameters"
+  openssl_dhparam:
+    path: "{{ ssl_dhparam_path }}"
+    size: "{{ ssl_dhparam_bits }}"
+    owner: root
+    group: root
+    mode: '0644'
+  when: ssl_dhparam_generate | bool
+  tags:
+    - ssl_configure
+    - dhparam
+
+- name: "SSL Config | Deploy SSL configuration file"
+  template:
+    src: ssl.conf.j2
+    dest: "{{ nginx_config_dir | default('/etc/nginx') }}/conf.d/ssl.conf"
+    owner: root
+    group: root
+    mode: '0644'
+    validate: 'nginx -t -c %s'
+    backup: yes
+  notify:
+    - validate nginx ssl
+    - reload nginx ssl
+  tags:
+    - ssl_configure
+
+- name: "SSL Config | Set secure permissions on private key"
+  file:
+    path: "{{ ssl_certificate_key_path }}"
+    owner: root
+    group: root
+    mode: '0600'
+  tags:
+    - ssl_configure
+
+- name: "SSL Config | Set permissions on certificate"
+  file:
+    path: "{{ ssl_certificate_path }}"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - ssl_configure
+
+- name: "SSL Config | Set permissions on DH parameters"
+  file:
+    path: "{{ ssl_dhparam_path }}"
+    owner: root
+    group: root
+    mode: '0644'
+  when: ssl_dhparam_generate | bool
+  tags:
+    - ssl_configure
+
+- name: "SSL Config | Create cipher suite file"
+  copy:
+    src: ssl_ciphers.txt
+    dest: "{{ ssl_certificate_dir }}/ssl_ciphers.txt"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - ssl_configure
+
+- name: "SSL Config | Test SSL configuration with OpenSSL"
+  shell: |
+    echo | openssl s_client -connect localhost:443 -tls1_2 -brief 2>&1 | head -10
+  register: ssl_test
+  changed_when: false
+  failed_when: false
+  tags:
+    - ssl_configure
+
+- name: "SSL Config | Display SSL test results"
+  debug:
+    msg: "{{ ssl_test.stdout_lines }}"
+  when: ssl_test.stdout_lines is defined
+  tags:
+    - ssl_configure
+
+- name: "SSL Config | Verify SSL protocols"
+  shell: |
+    openssl s_client -connect localhost:443 -{{ item }} -brief < /dev/null 2>&1 | grep -q "Cipher is"
+    echo $?
+  loop:
+    - tls1
+    - tls1_1
+    - tls1_2
+    - tls1_3
+  register: ssl_protocol_check
+  changed_when: false
+  failed_when: false
+  tags:
+    - ssl_configure
+
+- name: "SSL Config | Display protocol support"
+  debug:
+    msg:
+      - "TLS 1.0: {{ 'Enabled' if ssl_protocol_check.results[0].stdout == '0' else 'Disabled (Correct)' }}"
+      - "TLS 1.1: {{ 'Enabled' if ssl_protocol_check.results[1].stdout == '0' else 'Disabled (Correct)' }}"
+      - "TLS 1.2: {{ 'Enabled (Correct)' if ssl_protocol_check.results[2].stdout == '0' else 'Disabled' }}"
+      - "TLS 1.3: {{ 'Enabled (Correct)' if ssl_protocol_check.results[3].stdout == '0' else 'Disabled' }}"
+  tags:
+    - ssl_configure
+
+################################################################################
+# END OF FILE: roles/ssl_tls/tasks/configure_ssl.yml
+################################################################################

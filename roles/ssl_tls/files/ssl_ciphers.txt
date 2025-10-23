@@ -1,0 +1,115 @@
+################################################################################
+# File: roles/ssl_tls/files/ssl_ciphers.txt
+# Purpose: Reference list of approved SSL/TLS cipher suites
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+#
+# Cipher Suite Selection Guide:
+# - ECDHE: Elliptic Curve Diffie-Hellman Ephemeral (Perfect Forward Secrecy)
+# - ECDSA/RSA: Certificate signature algorithms
+# - AES-GCM: Authenticated encryption (preferred)
+# - CHACHA20-POLY1305: Modern alternative to AES (better mobile performance)
+# - SHA256/SHA384: Hash algorithms
+#
+# Sources:
+# - Mozilla SSL Configuration Generator: https://ssl-config.mozilla.org/
+# - OWASP TLS Cheat Sheet: https://cheatsheetseries.owasp.org/
+# - NIST Guidelines: https://csrc.nist.gov/publications/
+################################################################################
+
+# ============================================================================
+# MODERN CONFIGURATION (TLS 1.3 + TLS 1.2)
+# Recommended for production environments
+# Supports: Firefox 63+, Chrome 70+, Edge 75+, Safari 12.1+, Opera 57+
+# ============================================================================
+
+TLS_AES_128_GCM_SHA256
+TLS_AES_256_GCM_SHA384
+TLS_CHACHA20_POLY1305_SHA256
+ECDHE-ECDSA-AES128-GCM-SHA256
+ECDHE-RSA-AES128-GCM-SHA256
+ECDHE-ECDSA-AES256-GCM-SHA384
+ECDHE-RSA-AES256-GCM-SHA384
+ECDHE-ECDSA-CHACHA20-POLY1305
+ECDHE-RSA-CHACHA20-POLY1305
+
+# ============================================================================
+# INTERMEDIATE CONFIGURATION (TLS 1.2+)
+# For broader compatibility with older clients
+# Supports: Firefox 27+, Chrome 31+, IE 11+, Edge, Safari 9+, Opera 20+
+# ============================================================================
+
+# Add these if intermediate compatibility required:
+# DHE-RSA-AES128-GCM-SHA256
+# DHE-RSA-AES256-GCM-SHA384
+
+# ============================================================================
+# DEPRECATED/INSECURE CIPHERS (DO NOT USE)
+# ============================================================================
+
+# SSLv2, SSLv3, TLS 1.0, TLS 1.1 - All deprecated
+# RC4 - Broken (RFC 7465)
+# 3DES - Weak (Sweet32 attack)
+# MD5 - Broken
+# SHA1 - Deprecated for certificates
+# NULL - No encryption
+# EXPORT - Weak 40/56-bit encryption (FREAK attack)
+# Anonymous DH (ADH) - No authentication (MITM vulnerable)
+# DES - Too weak
+
+# Examples of what NOT to use:
+# RC4-SHA
+# DES-CBC3-SHA
+# AES128-SHA
+# AES256-SHA
+# ECDHE-RSA-AES128-SHA
+# PSK ciphers
+# SRP ciphers
+# CAMELLIA ciphers (not widely supported)
+# SEED ciphers (not widely supported)
+
+# ============================================================================
+# CIPHER SUITE ORDERING BEST PRACTICES
+# ============================================================================
+
+# 1. TLS 1.3 cipher suites (AEAD only, most secure)
+#    - TLS_AES_256_GCM_SHA384
+#    - TLS_CHACHA20_POLY1305_SHA256
+#    - TLS_AES_128_GCM_SHA256
+
+# 2. ECDHE with ECDSA (preferred for P-256/P-384 certificates)
+#    - Perfect Forward Secrecy
+#    - Faster than RSA
+#    - Smaller key sizes
+
+# 3. ECDHE with RSA (for RSA certificates)
+#    - Perfect Forward Secrecy
+#    - Widely supported
+
+# 4. Prefer GCM over CBC
+#    - GCM: Authenticated encryption, no padding oracle vulnerabilities
+#    - CBC: Vulnerable to BEAST, Lucky13 attacks if not properly implemented
+
+# 5. Prefer CHACHA20-POLY1305 on mobile/ARM
+#    - Better performance on devices without AES hardware acceleration
+
+# ============================================================================
+# TESTING YOUR CIPHER CONFIGURATION
+# ============================================================================
+
+# Test with nmap:
+# nmap --script ssl-enum-ciphers -p 443 <hostname>
+
+# Test with testssl.sh:
+# ./testssl.sh --full <hostname>
+
+# Test with OpenSSL:
+# openssl s_client -connect <hostname>:443 -tls1_2 -cipher 'ECDHE-RSA-AES128-GCM-SHA256'
+
+# Online testing:
+# https://www.ssllabs.com/ssltest/
+# https://observatory.mozilla.org/
+
+################################################################################
+# END OF FILE: roles/ssl_tls/files/ssl_ciphers.txt
+################################################################################

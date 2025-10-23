@@ -1,0 +1,132 @@
+################################################################################
+# File: roles/validation/tasks/main.yml
+# Purpose: Main orchestration for validation role
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Main validation orchestration
+
+- name: "Validation | Display role banner"
+  debug:
+    msg:
+      - "=========================================="
+      - "Role: Validation & Compliance"
+      - "=========================================="
+      - "Host: {{ inventory_hostname }}"
+      - "OpenSCAP: {{ openscap_enabled }}"
+      - "Custom Checks: {{ custom_checks_enabled }}"
+      - "Timestamp: {{ ansible_date_time.iso8601 }}"
+      - "=========================================="
+  tags:
+    - validation
+    - always
+
+- name: "Validation | Create validation report directories"
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ validation_report_dir }}"
+    - "{{ openscap_results_dir }}"
+    - "{{ report_archive_dir }}"
+  tags:
+    - validation
+
+- name: "Validation | Initialize validation results"
+  set_fact:
+    validation_results:
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      hostname: "{{ inventory_hostname }}"
+      environment: "{{ environment_name | default('undefined') }}"
+      total_checks: 0
+      passed: 0
+      failed: 0
+      warnings: 0
+      checks: []
+  tags:
+    - validation
+
+- name: "Validation | Validate RHEL hardening"
+  include_tasks: validate_rhel.yml
+  when: validate_rhel_hardening | bool
+  tags:
+    - validation
+    - validate_rhel
+
+- name: "Validation | Validate NGINX configuration"
+  include_tasks: validate_nginx.yml
+  when:
+    - validate_nginx_config | bool
+    - "'webservers' in group_names"
+  tags:
+    - validation
+    - validate_nginx
+
+- name: "Validation | Validate SSL/TLS configuration"
+  include_tasks: validate_ssl.yml
+  when:
+    - validate_ssl_tls | bool
+    - "'webservers' in group_names"
+  tags:
+    - validation
+    - validate_ssl
+
+- name: "Validation | Validate firewall configuration"
+  include_tasks: validate_firewall.yml
+  when: validate_firewall | bool
+  tags:
+    - validation
+    - validate_firewall
+
+- name: "Validation | Run OpenSCAP scan"
+  include_tasks: openscap_scan.yml
+  when: openscap_enabled | bool
+  tags:
+    - validation
+    - openscap
+
+- name: "Validation | Calculate compliance score"
+  set_fact:
+    compliance_score: "{{ ((validation_results.passed | float / validation_results.total_checks | float) * 100) | round(2) if validation_results.total_checks > 0 else 0 }}"
+  tags:
+    - validation
+
+- name: "Validation | Generate validation report"
+  template:
+    src: validation_report.j2
+    dest: "{{ validation_report_dir }}/{{ validation_report_file }}"
+    mode: '0644'
+  tags:
+    - validation
+
+- name: "Validation | Display validation summary"
+  debug:
+    msg:
+      - "=========================================="
+      - "Validation Summary"
+      - "=========================================="
+      - "Total Checks: {{ validation_results.total_checks }}"
+      - "Passed: {{ validation_results.passed }}"
+      - "Failed: {{ validation_results.failed }}"
+      - "Warnings: {{ validation_results.warnings }}"
+      - "Compliance Score: {{ compliance_score }}%"
+      - "Report: {{ validation_report_dir }}/{{ validation_report_file }}"
+      - "=========================================="
+  tags:
+    - validation
+
+- name: "Validation | Fail if compliance threshold not met"
+  fail:
+    msg: "Compliance score {{ compliance_score }}% is below threshold {{ compliance_pass_threshold }}%"
+  when:
+    - validation_fail_on_error | bool
+    - compliance_score | float < compliance_pass_threshold | float
+  tags:
+    - validation
+
+################################################################################
+# END OF FILE: roles/validation/tasks/main.yml
+################################################################################

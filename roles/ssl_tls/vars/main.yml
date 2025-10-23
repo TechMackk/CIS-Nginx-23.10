@@ -1,0 +1,19 @@
+################################################################################
+# File: roles/ssl_tls/vars/main.yml
+# Purpose: Role-specific variables (higher precedence)
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Internal tracking variables
+ssl_configuration_status: "pending"
+ssl_certificate_valid: false
+ssl_certificate_expiry_days: 0
+
+# OpenSSL binary path
+openssl_bin: "/usr/bin/openssl"
+
+################################################################################
+# END OF FILE: roles/ssl_tls/vars/main.yml
+################################################################################

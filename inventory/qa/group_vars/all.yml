@@ -1,0 +1,101 @@
+################################################################################
+# File: inventory/qa/group_vars/all.yml
+# Purpose: Global variables for all hosts in QA environment
+# Environment: QA
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Global Configuration for QA Environment
+
+# Environment identification
+environment_name: "qa"
+environment_tier: "qa"
+deployment_region: "us-east-1"
+
+# Timezone
+timezone: "America/New_York"
+
+# NTP servers
+ntp_servers:
+  - 0.rhel.pool.ntp.org
+  - 1.rhel.pool.ntp.org
+  - 2.rhel.pool.ntp.org
+
+# DNS servers
+dns_servers:
+  - 10.120.1.10
+  - 10.120.1.11
+
+# Backup configuration
+backup_root_dir: "/backup"
+backup_retention_days: 30
+backup_enabled: true
+
+# Log retention
+log_retention_days: 90
+log_aggregation_server: "logs-qa.company.local"
+
+# Repository configuration
+rhel_repos_enabled:
+  - rhel-8-for-x86_64-baseos-rpms
+  - rhel-8-for-x86_64-appstream-rpms
+  - rhel-8-for-x86_64-supplementary-rpms
+
+# Package manager
+yum_update_on_hardening: false
+yum_exclude_packages:
+  - kernel*
+  - ansible
+
+# SELinux
+selinux_state: enforcing
+selinux_policy: targeted
+
+# Firewall
+firewall_enabled: true
+firewall_default_zone: public
+
+# SSH configuration
+ssh_port: 22
+ssh_permit_root_login: "no"
+ssh_password_authentication: "no"
+ssh_max_auth_tries: 3
+ssh_max_sessions: 5
+
+# User management
+admin_users:
+  - ansible
+  - devops
+  - qa-admin
+
+# Notifications
+notification_email: "devops-qa@company.com"
+smtp_relay: "smtp-qa.company.local"
+
+# CIS hardening (Level 2 - more strict)
+cis_level: 2
+cis_apply_all: true
+
+# AIDE
+aide_enabled: true
+aide_cron_schedule: "0 5 * * *"
+
+# Auditd
+auditd_enabled: true
+auditd_max_log_file: 100
+
+# Automatic updates
+auto_updates_enabled: false
+
+# Performance tuning
+enable_performance_tuning: true
+
+# Debug mode
+debug_mode: false
+verbose_logging: false
+
+################################################################################
+# END OF FILE: inventory/qa/group_vars/all.yml
+################################################################################

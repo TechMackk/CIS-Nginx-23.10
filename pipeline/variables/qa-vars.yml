@@ -1,0 +1,36 @@
+################################################################################
+# File: pipeline/variables/qa-vars.yml
+# Purpose: QA environment pipeline variables
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+variables:
+  # Environment identification
+  ENVIRONMENT_NAME: 'qa'
+  ENVIRONMENT_SHORT: 'qa'
+  
+  # Inventory
+  INVENTORY_PATH: 'inventory/qa/hosts.yml'
+  
+  # Approval requirements
+  REQUIRE_MANUAL_APPROVAL: true
+  
+  # CIS hardening level
+  CIS_LEVEL: 2
+  STRICT_CIS_MODE: true
+  
+  # Backup settings
+  BACKUP_RETENTION_DAYS: 30
+  
+  # Notification
+  NOTIFY_ON_FAILURE: true
+  NOTIFY_ON_SUCCESS: true
+  
+  # Validation
+  RUN_OPENSCAP_SCAN: true
+  GENERATE_COMPLIANCE_REPORT: true
+
+################################################################################
+# END OF FILE: pipeline/variables/qa-vars.yml
+################################################################################

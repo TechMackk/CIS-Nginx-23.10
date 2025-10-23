@@ -1,0 +1,99 @@
+################################################################################
+# File: inventory/dev/group_vars/all.yml
+# Purpose: Global variables for all hosts in DEV environment
+# Environment: DEV
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Global Configuration for Development Environment
+
+# Environment identification
+environment_name: "development"
+environment_tier: "dev"
+deployment_region: "us-east-1"
+
+# Timezone configuration
+timezone: "America/New_York"
+
+# NTP servers for time synchronization
+ntp_servers:
+  - 0.rhel.pool.ntp.org
+  - 1.rhel.pool.ntp.org
+  - 2.rhel.pool.ntp.org
+
+# DNS servers
+dns_servers:
+  - 10.100.1.10
+  - 10.100.1.11
+
+# Backup configuration
+backup_root_dir: "/backup"
+backup_retention_days: 7
+backup_enabled: true
+
+# Log retention
+log_retention_days: 30
+log_aggregation_server: "logs-dev.company.local"
+
+# Repository configuration (RHEL)
+rhel_repos_enabled:
+  - rhel-8-for-x86_64-baseos-rpms
+  - rhel-8-for-x86_64-appstream-rpms
+  - rhel-8-for-x86_64-supplementary-rpms
+
+# Package manager settings
+yum_update_on_hardening: false  # Don't update packages during hardening in dev
+yum_exclude_packages:
+  - kernel*
+  - ansible
+
+# SELinux configuration
+selinux_state: enforcing
+selinux_policy: targeted
+
+# Firewall defaults
+firewall_enabled: true
+firewall_default_zone: public
+
+# SSH configuration
+ssh_port: 22
+ssh_permit_root_login: "no"
+ssh_password_authentication: "no"
+ssh_max_auth_tries: 3
+ssh_max_sessions: 5
+
+# User management
+admin_users:
+  - ansible
+  - devops
+
+# Email notifications
+notification_email: "devops-dev@company.com"
+smtp_relay: "smtp-dev.company.local"
+
+# CIS hardening level (1 or 2)
+cis_level: 1  # Level 1 for dev (less strict)
+cis_apply_all: false  # Manual control in dev
+
+# AIDE (file integrity monitoring)
+aide_enabled: false  # Disabled in dev for performance
+
+# Auditd configuration
+auditd_enabled: true
+auditd_max_log_file: 50  # MB
+
+# Automatic updates
+auto_updates_enabled: false  # Manual control in dev
+
+# Performance tuning
+enable_performance_tuning: false
+
+# Debug mode
+debug_mode: true
+verbose_logging: true
+
+################################################################################
+# END OF FILE: inventory/dev/group_vars/all.yml
+################################################################################

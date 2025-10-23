@@ -1,0 +1,92 @@
+################################################################################
+# File: roles/nginx/tasks/install.yml
+# Purpose: NGINX installation tasks
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# NGINX installation
+
+- name: "NGINX Install | Add NGINX official repository"
+  yum_repository:
+    name: nginx
+    description: "NGINX Official Repository"
+    baseurl: "{{ nginx_repo_url }}"
+    gpgcheck: yes
+    gpgkey: "https://nginx.org/keys/nginx_signing.key"
+    enabled: yes
+  when: nginx_install_method == "package"
+  tags:
+    - nginx_install
+
+- name: "NGINX Install | Install NGINX package"
+  package:
+    name: "{{ nginx_package_name }}"
+    state: present
+  when: nginx_install_method == "package"
+  tags:
+    - nginx_install
+
+- name: "NGINX Install | Install NGINX dependencies"
+  package:
+    name: "{{ nginx_dependencies }}"
+    state: present
+  tags:
+    - nginx_install
+
+- name: "NGINX Install | Create NGINX user"
+  user:
+    name: "{{ nginx_user }}"
+    system: yes
+    shell: /sbin/nologin
+    home: "{{ nginx_lib_dir }}"
+    create_home: no
+  tags:
+    - nginx_install
+
+- name: "NGINX Install | Create NGINX directories"
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_group }}"
+    mode: '0755'
+  loop:
+    - "{{ nginx_config_dir }}/conf.d"
+    - "{{ nginx_config_dir }}/sites-available"
+    - "{{ nginx_config_dir }}/sites-enabled"
+    - "{{ nginx_config_dir }}/ssl"
+    - "{{ nginx_log_dir }}"
+    - "{{ nginx_cache_dir }}"
+    - "{{ nginx_lib_dir }}"
+  tags:
+    - nginx_install
+
+- name: "NGINX Install | Set log directory permissions"
+  file:
+    path: "{{ nginx_log_dir }}"
+    state: directory
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_group }}"
+    mode: '0750'
+  tags:
+    - nginx_install
+
+- name: "NGINX Install | Verify NGINX installation"
+  command: nginx -v
+  register: nginx_version_check
+  changed_when: false
+  failed_when: nginx_version_check.rc != 0
+  tags:
+    - nginx_install
+
+- name: "NGINX Install | Display installed version"
+  debug:
+    msg: "NGINX installed: {{ nginx_version_check.stderr }}"
+  tags:
+    - nginx_install
+
+################################################################################
+# END OF FILE: roles/nginx/tasks/install.yml
+################################################################################

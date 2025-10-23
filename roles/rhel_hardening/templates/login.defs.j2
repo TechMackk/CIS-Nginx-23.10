@@ -1,0 +1,199 @@
+################################################################################
+# File: roles/rhel_hardening/templates/login.defs.j2
+# Purpose: Login and password aging configuration based on CIS Benchmark
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+# Reference: CIS RHEL 8/9 Benchmark Section 5.4.1
+################################################################################
+
+# Managed by Ansible - DO NOT EDIT MANUALLY
+# Last updated: {{ ansible_date_time.iso8601 }}
+# Environment: {{ environment_name | default('undefined') }}
+
+################################################################################
+## Password Aging Controls (CIS 5.4.1.x)
+################################################################################
+
+# Maximum number of days a password may be used (CIS 5.4.1.1)
+PASS_MAX_DAYS   {{ password_max_days }}
+
+# Minimum number of days allowed between password changes (CIS 5.4.1.2)
+PASS_MIN_DAYS   {{ password_min_days }}
+
+# Number of days warning given before password expires (CIS 5.4.1.3)
+PASS_WARN_AGE   {{ password_warn_age }}
+
+# Minimum acceptable password length
+PASS_MIN_LEN    14
+
+################################################################################
+## User ID Configuration
+################################################################################
+
+# Min/max values for automatic uid selection in useradd
+UID_MIN                  1000
+UID_MAX                 60000
+
+# System accounts
+SYS_UID_MIN               201
+SYS_UID_MAX               999
+
+# Min/max values for automatic gid selection in groupadd
+GID_MIN                  1000
+GID_MAX                 60000
+
+# System groups
+SYS_GID_MIN               201
+SYS_GID_MAX               999
+
+################################################################################
+## Home Directory Configuration
+################################################################################
+
+# If useradd should create home directories for users by default
+CREATE_HOME     yes
+
+# The permission mask for home directories
+UMASK           027
+
+# User groups
+USERGROUPS_ENAB yes
+
+################################################################################
+## Encryption Method
+################################################################################
+
+# Use SHA512 for password encryption
+ENCRYPT_METHOD SHA512
+
+# Number of SHA rounds (higher = more secure but slower)
+SHA_CRYPT_MIN_ROUNDS 5000
+SHA_CRYPT_MAX_ROUNDS 5000
+
+################################################################################
+## Login Configuration
+################################################################################
+
+# Delay in seconds before being allowed another attempt after a login failure
+FAIL_DELAY      4
+
+# Enable logging of successful logins
+LOG_OK_LOGINS   yes
+
+# Enable logging of unknown usernames
+LOG_UNKFAIL_ENAB        yes
+
+# Enable display of failed login attempts
+FAILLOG_ENAB    yes
+
+# Enable logging and display of last login time
+LASTLOG_ENAB    yes
+
+# Maximum number of login retries
+LOGIN_RETRIES   3
+
+# Maximum time in seconds for login
+LOGIN_TIMEOUT   60
+
+################################################################################
+## Terminal Settings
+################################################################################
+
+# Terminal permissions
+TTYPERM         0600
+
+# Enable setting of ulimit, umask and nice from /etc/default/login
+ULIMIT          4194304
+
+################################################################################
+## Mail Configuration
+################################################################################
+
+# Path to the mail spool directory
+MAIL_DIR        /var/spool/mail
+
+# If defined, file created at user creation
+# MAIL_FILE      .mail
+
+################################################################################
+## su Configuration
+################################################################################
+
+# If defined, this command is run when calling su
+# SU_NAME         su
+
+# If defined, file which maps tty line to TERM environment parameter
+# TTYTYPE_FILE    /etc/ttytype
+
+################################################################################
+## Password Change Configuration
+################################################################################
+
+# If defined, all su activity is logged
+SULOG_FILE      /var/log/sulog
+
+# If defined, file which inhibits all the usual chatter during the login
+# sequence
+# HUSHLOGIN_FILE  .hushlogin
+
+# env variables required for user's PATH
+ENV_SUPATH      PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ENV_PATH        PATH=/usr/local/bin:/usr/bin:/bin
+
+################################################################################
+## Terminal Type
+################################################################################
+
+# If defined, the TERM environment parameter will be initialized to this value
+# TTYTYPE         linux
+
+################################################################################
+## Chroot Configuration
+################################################################################
+
+# If defined, login failures will be logged here in a utmp format
+# FTMP_FILE       /var/log/btmp
+
+# If defined, login successes will be logged here in a utmp format
+# LLOG_FILE       /var/log/llog
+
+################################################################################
+## Password Complexity (used by pam_pwquality)
+################################################################################
+
+# These are now configured via /etc/security/pwquality.conf
+# Included here for reference:
+# - minlen: minimum password length
+# - dcredit: minimum number of digits (-1 = at least 1)
+# - ucredit: minimum number of uppercase (-1 = at least 1)
+# - lcredit: minimum number of lowercase (-1 = at least 1)
+# - ocredit: minimum number of other characters (-1 = at least 1)
+
+################################################################################
+## Account Inactivity
+################################################################################
+
+# Number of days of inactivity after password expires before account is locked
+# This is now set via chage command per user or in user creation
+# INACTIVE={{ password_inactive_days }}
+
+################################################################################
+## Additional Security
+################################################################################
+
+# Prevent non-root users from seeing information about other users
+USERGROUPS_ENAB yes
+
+# Default mask for permissions on user's home directory
+UMASK           027
+
+# Default mask for home directory creation
+HOME_MODE       0750
+
+# Erase character and kill character
+ERASECHAR       0177
+KILLCHAR        025
+
+################################################################################
+# END OF FILE: roles/rhel_hardening/templates/login.defs.j2
+################################################################################

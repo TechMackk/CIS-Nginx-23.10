@@ -1,0 +1,119 @@
+################################################################################
+# File: roles/firewall/tasks/configure_firewalld.yml
+# Purpose: Firewalld installation and basic configuration
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Firewalld configuration
+
+- name: "Firewalld Config | Install firewall packages"
+  package:
+    name: "{{ firewall_packages }}"
+    state: present
+  tags:
+    - firewall_configure
+
+- name: "Firewalld Config | Ensure iptables service is stopped and disabled"
+  systemd:
+    name: iptables
+    state: stopped
+    enabled: no
+  when: ansible_facts.services['iptables.service'] is defined
+  ignore_errors: yes
+  tags:
+    - firewall_configure
+
+- name: "Firewalld Config | Ensure firewalld service is enabled and started"
+  systemd:
+    name: firewalld
+    enabled: yes
+    state: started
+  tags:
+    - firewall_configure
+
+- name: "Firewalld Config | Set default zone"
+  command: firewall-cmd --set-default-zone={{ firewall_default_zone }}
+  register: default_zone_result
+  changed_when: "'ZONE_ALREADY_SET' not in default_zone_result.stderr"
+  tags:
+    - firewall_configure
+
+- name: "Firewalld Config | Configure logging for denied packets"
+  command: firewall-cmd --set-log-denied={{ firewall_log_denied }} --permanent
+  notify: reload firewalld
+  tags:
+    - firewall_configure
+
+- name: "Firewalld Config | Disable IPv6 if not needed"
+  lineinfile:
+    path: /etc/firewalld/firewalld.conf
+    regexp: '^IPv6_rpfilter='
+    line: 'IPv6_rpfilter=no'
+    state: present
+  when: not firewall_ipv6_enabled | bool
+  notify: restart firewalld
+  tags:
+    - firewall_configure
+
+- name: "Firewalld Config | Configure firewalld.conf settings"
+  lineinfile:
+    path: /etc/firewalld/firewalld.conf
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    state: present
+  loop:
+    - { key: 'DefaultZone', value: '{{ firewall_default_zone }}' }
+    - { key: 'CleanupOnExit', value: 'yes' }
+    - { key: 'Lockdown', value: 'no' }
+    - { key: 'MinimalMark', value: '100' }
+  notify: restart firewalld
+  tags:
+    - firewall_configure
+
+- name: "Firewalld Config | Create custom zones if defined"
+  firewalld:
+    zone: "{{ item }}"
+    permanent: yes
+    state: present
+  loop: "{{ firewall_custom_zones }}"
+  when: firewall_custom_zones | length > 0
+  notify: reload firewalld
+  tags:
+    - firewall_configure
+
+- name: "Firewalld Config | Bind interfaces to zones"
+  firewalld:
+    zone: "{{ item.key }}"
+    interface: "{{ iface }}"
+    permanent: yes
+    immediate: yes
+    state: enabled
+  loop: "{{ firewall_zone_interfaces | dict2items }}"
+  loop_control:
+    loop_var: item
+  with_items: "{{ item.value }}"
+  loop_control:
+    loop_var: iface
+  when: item.value | length > 0
+  notify: reload firewalld
+  tags:
+    - firewall_configure
+
+- name: "Firewalld Config | Remove default services if configured"
+  firewalld:
+    zone: "{{ firewall_default_zone }}"
+    service: "{{ item }}"
+    permanent: yes
+    immediate: yes
+    state: disabled
+  loop: "{{ firewall_default_services_to_remove }}"
+  when: firewall_remove_default_services | bool
+  notify: reload firewalld
+  tags:
+    - firewall_configure
+
+################################################################################
+# END OF FILE: roles/firewall/tasks/configure_firewalld.yml
+################################################################################

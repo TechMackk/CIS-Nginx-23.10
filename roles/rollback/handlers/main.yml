@@ -1,0 +1,34 @@
+################################################################################
+# File: roles/rollback/handlers/main.yml
+# Purpose: Handlers for rollback role
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+- name: restart sshd after rollback
+  systemd:
+    name: sshd
+    state: restarted
+  listen: "restart services after rollback"
+
+- name: restart nginx after rollback
+  systemd:
+    name: nginx
+    state: restarted
+  when: "'webservers' in group_names"
+  listen: "restart services after rollback"
+
+- name: restart firewalld after rollback
+  systemd:
+    name: firewalld
+    state: restarted
+  listen: "restart services after rollback"
+
+- name: restart auditd after rollback
+  command: service auditd restart
+  listen: "restart services after rollback"
+
+################################################################################
+# END OF FILE: roles/rollback/handlers/main.yml
+################################################################################

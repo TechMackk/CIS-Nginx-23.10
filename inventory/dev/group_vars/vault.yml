@@ -1,0 +1,112 @@
+################################################################################
+# File: inventory/dev/group_vars/vault.yml
+# Purpose: Encrypted secrets for DEV environment (Ansible Vault)
+# Environment: DEV
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+# 
+# USAGE:
+#   Encrypt: ansible-vault encrypt inventory/dev/group_vars/vault.yml
+#   Decrypt: ansible-vault decrypt inventory/dev/group_vars/vault.yml
+#   Edit: ansible-vault edit inventory/dev/group_vars/vault.yml
+#   View: ansible-vault view inventory/dev/group_vars/vault.yml
+#
+# NOTE: This file should be encrypted before committing to Git!
+################################################################################
+
+---
+# Vault-encrypted secrets for Development environment
+# ENCRYPT THIS FILE BEFORE COMMITTING: ansible-vault encrypt vault.yml
+
+# Ansible connection credentials
+# vault_ansible_password: !vault |
+#           $ANSIBLE_VAULT;1.1;AES256
+#           ... encrypted content ...
+
+# SSH private key passphrase (if using encrypted keys)
+# vault_ssh_key_passphrase: !vault |
+#           $ANSIBLE_VAULT;1.1;AES256
+#           ... encrypted content ...
+
+# Sudo password (if become_ask_pass is true)
+# vault_become_password: !vault |
+#           $ANSIBLE_VAULT;1.1;AES256
+#           ... encrypted content ...
+
+# SSL/TLS certificate passwords
+# vault_ssl_key_password: !vault |
+#           $ANSIBLE_VAULT;1.1;AES256
+#           ... encrypted content ...
+
+# Database credentials (if needed)
+# vault_db_root_password: !vault |
+#           $ANSIBLE_VAULT;1.1;AES256
+#           ... encrypted content ...
+
+# vault_db_app_password: !vault |
+#           $ANSIBLE_VAULT;1.1;AES256
+#           ... encrypted content ...
+
+# API keys and tokens
+# vault_monitoring_api_key: !vault |
+#           $ANSIBLE_VAULT;1.1;AES256
+#           ... encrypted content ...
+
+# vault_backup_encryption_key: !vault |
+#           $ANSIBLE_VAULT;1.1;AES256
+#           ... encrypted content ...
+
+# LDAP/AD credentials
+# vault_ldap_bind_dn: !vault |
+#           $ANSIBLE_VAULT;1.1;AES256
+#           ... encrypted content ...
+
+# vault_ldap_bind_password: !vault |
+#           $ANSIBLE_VAULT;1.1;AES256
+#           ... encrypted content ...
+
+# Cloud provider credentials (Azure)
+# vault_azure_subscription_id: !vault |
+#           $ANSIBLE_VAULT;1.1;AES256
+#           ... encrypted content ...
+
+# vault_azure_client_id: !vault |
+#           $ANSIBLE_VAULT;1.1;AES256
+#           ... encrypted content ...
+
+# vault_azure_client_secret: !vault |
+#           $ANSIBLE_VAULT;1.1;AES256
+#           ... encrypted content ...
+
+# vault_azure_tenant_id: !vault |
+#           $ANSIBLE_VAULT;1.1;AES256
+#           ... encrypted content ...
+
+# Email credentials for notifications
+# vault_smtp_username: !vault |
+#           $ANSIBLE_VAULT;1.1;AES256
+#           ... encrypted content ...
+
+# vault_smtp_password: !vault |
+#           $ANSIBLE_VAULT;1.1;AES256
+#           ... encrypted content ...
+
+# PLACEHOLDER VALUES (Replace with actual encrypted values)
+# These are examples - replace with real vault-encrypted strings
+
+vault_ansible_user: "ansible"
+vault_ansible_become_password: "CHANGE_ME_AND_ENCRYPT"
+vault_ssl_certificate_password: "CHANGE_ME_AND_ENCRYPT"
+vault_backup_encryption_key: "CHANGE_ME_AND_ENCRYPT"
+vault_monitoring_api_token: "CHANGE_ME_AND_ENCRYPT"
+
+# Notes:
+# 1. Generate vault password: ./scripts/generate_vault_password.sh
+# 2. Store vault password securely (NOT in Git)
+# 3. Use --ask-vault-pass or --vault-password-file when running playbooks
+# 4. Example encryption:
+#    ansible-vault encrypt_string 'secret_password' --name 'vault_variable_name'
+
+################################################################################
+# END OF FILE: inventory/dev/group_vars/vault.yml
+################################################################################

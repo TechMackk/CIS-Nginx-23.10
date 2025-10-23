@@ -1,0 +1,98 @@
+################################################################################
+# File: roles/validation/tasks/validate_ssl.yml
+# Purpose: SSL/TLS configuration validation checks
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# SSL/TLS validation
+
+- name: "Validate SSL | Check SSL certificate exists"
+  stat:
+    path: "{{ ssl_certificate_path | default('/etc/nginx/ssl/server.crt') }}"
+  register: ssl_cert
+  tags:
+    - validate_ssl
+
+- name: "Validate SSL | Record SSL certificate check"
+  set_fact:
+    validation_results: "{{ validation_results | combine({'checks': validation_results.checks + [{'name': 'SSL Certificate Exists', 'status': 'PASS' if ssl_cert.stat.exists else 'FAIL', 'value': 'Present' if ssl_cert.stat.exists else 'Missing'}]}) }}"
+    validation_results: "{{ validation_results | combine({'total_checks': validation_results.total_checks + 1, 'passed': validation_results.passed + 1 if ssl_cert.stat.exists else validation_results.passed, 'failed': validation_results.failed + 1 if not ssl_cert.stat.exists else validation_results.failed}) }}"
+  tags:
+    - validate_ssl
+
+- name: "Validate SSL | Check certificate expiry"
+  shell: |
+    openssl x509 -enddate -noout -in {{ ssl_certificate_path | default('/etc/nginx/ssl/server.crt') }} | cut -d= -f2
+  register: ssl_expiry
+  changed_when: false
+  failed_when: false
+  when: ssl_cert.stat.exists
+  tags:
+    - validate_ssl
+
+- name: "Validate SSL | Calculate days until expiry"
+  shell: |
+    echo $(( ($(date -d "{{ ssl_expiry.stdout }}" +%s) - $(date +%s)) / 86400 ))
+  register: ssl_days_remaining
+  changed_when: false
+  when: ssl_cert.stat.exists
+  tags:
+    - validate_ssl
+
+- name: "Validate SSL | Record certificate expiry check"
+  set_fact:
+    validation_results: "{{ validation_results | combine({'checks': validation_results.checks + [{'name': 'SSL Certificate Validity', 'status': 'PASS' if (ssl_days_remaining.stdout | int) > 30 else 'WARN', 'value': ssl_days_remaining.stdout + ' days'}]}) }}"
+    validation_results: "{{ validation_results | combine({'total_checks': validation_results.total_checks + 1, 'passed': validation_results.passed + 1 if (ssl_days_remaining.stdout | int) > 30 else validation_results.passed, 'warnings': validation_results.warnings + 1 if (ssl_days_remaining.stdout | int) <= 30 else validation_results.warnings}) }}"
+  when: ssl_cert.stat.exists
+  tags:
+    - validate_ssl
+
+- name: "Validate SSL | Test TLS protocols"
+  shell: |
+    echo | openssl s_client -connect localhost:443 -{{ item }} 2>&1 | grep -q "Cipher is" && echo "ENABLED" || echo "DISABLED"
+  register: tls_protocols
+  changed_when: false
+  failed_when: false
+  loop:
+    - tls1
+    - tls1_1
+    - tls1_2
+    - tls1_3
+  tags:
+    - validate_ssl
+
+- name: "Validate SSL | Record TLS 1.0/1.1 disabled check"
+  set_fact:
+    validation_results: "{{ validation_results | combine({'checks': validation_results.checks + [{'name': 'TLS 1.0/1.1 Disabled', 'status': 'PASS' if tls_protocols.results[0].stdout == 'DISABLED' and tls_protocols.results[1].stdout == 'DISABLED' else 'FAIL', 'value': 'Disabled' if tls_protocols.results[0].stdout == 'DISABLED' else 'Enabled'}]}) }}"
+    validation_results: "{{ validation_results | combine({'total_checks': validation_results.total_checks + 1, 'passed': validation_results.passed + 1 if tls_protocols.results[0].stdout == 'DISABLED' and tls_protocols.results[1].stdout == 'DISABLED' else validation_results.passed, 'failed': validation_results.failed + 1 if tls_protocols.results[0].stdout != 'DISABLED' or tls_protocols.results[1].stdout != 'DISABLED' else validation_results.failed}) }}"
+  tags:
+    - validate_ssl
+
+- name: "Validate SSL | Record TLS 1.2/1.3 enabled check"
+  set_fact:
+    validation_results: "{{ validation_results | combine({'checks': validation_results.checks + [{'name': 'TLS 1.2/1.3 Enabled', 'status': 'PASS' if tls_protocols.results[2].stdout == 'ENABLED' or tls_protocols.results[3].stdout == 'ENABLED' else 'FAIL', 'value': 'Enabled' if tls_protocols.results[2].stdout == 'ENABLED' else 'Disabled'}]}) }}"
+    validation_results: "{{ validation_results | combine({'total_checks': validation_results.total_checks + 1, 'passed': validation_results.passed + 1 if tls_protocols.results[2].stdout == 'ENABLED' or tls_protocols.results[3].stdout == 'ENABLED' else validation_results.passed, 'failed': validation_results.failed + 1 if tls_protocols.results[2].stdout != 'ENABLED' and tls_protocols.results[3].stdout != 'ENABLED' else validation_results.failed}) }}"
+  tags:
+    - validate_ssl
+
+- name: "Validate SSL | Check HSTS header"
+  shell: |
+    curl -s -I https://localhost 2>/dev/null | grep -i "Strict-Transport-Security" || echo "NOT_FOUND"
+  register: hsts_header
+  changed_when: false
+  failed_when: false
+  tags:
+    - validate_ssl
+
+- name: "Validate SSL | Record HSTS check"
+  set_fact:
+    validation_results: "{{ validation_results | combine({'checks': validation_results.checks + [{'name': 'HSTS Enabled', 'status': 'PASS' if 'NOT_FOUND' not in hsts_header.stdout else 'WARN', 'value': 'Enabled' if 'NOT_FOUND' not in hsts_header.stdout else 'Disabled'}]}) }}"
+    validation_results: "{{ validation_results | combine({'total_checks': validation_results.total_checks + 1, 'passed': validation_results.passed + 1 if 'NOT_FOUND' not in hsts_header.stdout else validation_results.passed, 'warnings': validation_results.warnings + 1 if 'NOT_FOUND' in hsts_header.stdout else validation_results.warnings}) }}"
+  tags:
+    - validate_ssl
+
+################################################################################
+# END OF FILE: roles/validation/tasks/validate_ssl.yml
+################################################################################

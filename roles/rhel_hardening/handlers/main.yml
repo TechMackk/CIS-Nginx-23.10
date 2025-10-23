@@ -1,0 +1,72 @@
+################################################################################
+# File: roles/rhel_hardening/handlers/main.yml
+# Purpose: Handlers for RHEL hardening role
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+- name: reload sysctl
+  command: sysctl -p
+  listen: "reload sysctl"
+
+- name: restart sshd
+  systemd:
+    name: sshd
+    state: restarted
+  listen: "restart sshd"
+
+- name: restart auditd
+  command: service auditd restart
+  listen: "restart auditd"
+  # Note: auditd requires 'service' command, not systemctl
+
+- name: restart rsyslog
+  systemd:
+    name: rsyslog
+    state: restarted
+  when: ansible_facts.services['rsyslog.service'] is defined
+  listen: "restart rsyslog"
+
+- name: restart chronyd
+  systemd:
+    name: chronyd
+    state: restarted
+  when: time_sync_service == "chronyd"
+  listen: "restart time sync"
+
+- name: restart ntpd
+  systemd:
+    name: ntpd
+    state: restarted
+  when: time_sync_service == "ntpd"
+  listen: "restart time sync"
+
+- name: reload firewalld
+  systemd:
+    name: firewalld
+    state: reloaded
+  listen: "reload firewalld"
+
+- name: update aide database
+  command: aide --init
+  args:
+    creates: "{{ aide_db_filename }}.new"
+  listen: "update aide"
+
+- name: move aide database
+  command: "mv {{ aide_db_filename }}.new {{ aide_db_filename }}"
+  args:
+    removes: "{{ aide_db_filename }}.new"
+    creates: "{{ aide_db_filename }}"
+  listen: "move aide database"
+
+- name: restart systemd-journald
+  systemd:
+    name: systemd-journald
+    state: restarted
+  listen: "restart journald"
+
+################################################################################
+# END OF FILE: roles/rhel_hardening/handlers/main.yml
+################################################################################

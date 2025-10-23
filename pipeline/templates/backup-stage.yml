@@ -1,0 +1,58 @@
+################################################################################
+# File: pipeline/templates/backup-stage.yml
+# Purpose: Backup stage template for ADO pipeline
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+parameters:
+  - name: environment
+    type: string
+    default: 'dev'
+  - name: inventory
+    type: string
+    default: 'inventory/dev/hosts.yml'
+
+jobs:
+  - job: BackupConfiguration
+    displayName: 'Backup Configuration Files'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    variables:
+      - template: ../variables/common-vars.yml
+    
+    steps:
+      - task: UsePythonVersion@0
+        inputs:
+          versionSpec: '3.9'
+        displayName: 'Setup Python'
+
+      - script: |
+          pip install ansible
+          ansible-galaxy collection install -r requirements.yml
+        displayName: 'Install Ansible'
+
+      - task: DownloadSecureFile@1
+        name: vaultPassword
+        inputs:
+          secureFile: 'ansible-vault-password-${{ parameters.environment }}'
+        displayName: 'Download Vault Password'
+
+      - script: |
+          ansible-playbook -i ${{ parameters.inventory }} \
+            playbooks/backup.yml \
+            --vault-password-file=$(vaultPassword.secureFilePath) \
+            -vv
+        displayName: 'Execute Backup Playbook'
+
+      - task: PublishPipelineArtifact@1
+        inputs:
+          targetPath: 'reports'
+          artifact: 'backup-reports-${{ parameters.environment }}'
+          publishLocation: 'pipeline'
+        displayName: 'Publish Backup Reports'
+
+################################################################################
+# END OF FILE: pipeline/templates/backup-stage.yml
+################################################################################

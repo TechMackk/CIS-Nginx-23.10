@@ -1,0 +1,79 @@
+################################################################################
+# File: roles/nginx/tasks/main.yml
+# Purpose: Main orchestration for NGINX role
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Main NGINX orchestration
+
+- name: "NGINX | Display role banner"
+  debug:
+    msg:
+      - "=========================================="
+      - "Role: NGINX Web Server"
+      - "=========================================="
+      - "Host: {{ inventory_hostname }}"
+      - "NGINX Version: {{ nginx_version }}"
+      - "Install Method: {{ nginx_install_method }}"
+      - "Timestamp: {{ ansible_date_time.iso8601 }}"
+      - "=========================================="
+  tags:
+    - nginx
+    - always
+
+- name: "NGINX | Verify host is in webservers group"
+  assert:
+    that:
+      - "'webservers' in group_names"
+    fail_msg: "NGINX should only be installed on webservers group"
+    success_msg: "Host group verified"
+  tags:
+    - nginx
+    - always
+
+- name: "NGINX | Install NGINX"
+  include_tasks: install.yml
+  tags:
+    - nginx
+    - nginx_install
+
+- name: "NGINX | Configure NGINX"
+  include_tasks: configure.yml
+  tags:
+    - nginx
+    - nginx_configure
+
+- name: "NGINX | Harden NGINX"
+  include_tasks: harden.yml
+  tags:
+    - nginx
+    - nginx_harden
+
+- name: "NGINX | Ensure NGINX service is running"
+  systemd:
+    name: "{{ nginx_service_name }}"
+    enabled: "{{ nginx_service_enabled }}"
+    state: "{{ nginx_service_state }}"
+  tags:
+    - nginx
+
+- name: "NGINX | Display completion summary"
+  debug:
+    msg:
+      - "=========================================="
+      - "NGINX Configuration Complete"
+      - "=========================================="
+      - "Host: {{ inventory_hostname }}"
+      - "Service: {{ nginx_service_name }}"
+      - "Config: {{ nginx_config_file }}"
+      - "Status: {{ nginx_service_state }}"
+      - "=========================================="
+  tags:
+    - nginx
+    - always
+
+################################################################################
+# END OF FILE: roles/nginx/tasks/main.yml
+################################################################################

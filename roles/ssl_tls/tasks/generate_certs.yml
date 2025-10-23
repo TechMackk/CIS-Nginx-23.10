@@ -1,0 +1,129 @@
+################################################################################
+# File: roles/ssl_tls/tasks/generate_certs.yml
+# Purpose: Generate self-signed SSL certificates (dev/test only)
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Self-signed certificate generation (DEV/TEST ONLY)
+
+- name: "SSL Generate | Display warning"
+  debug:
+    msg:
+      - "WARNING: Generating self-signed certificate"
+      - "This should ONLY be used in dev/test environments"
+      - "Use trusted CA certificates in production"
+  tags:
+    - ssl_generate
+
+- name: "SSL Generate | Install OpenSSL"
+  package:
+    name: openssl
+    state: present
+  tags:
+    - ssl_generate
+
+- name: "SSL Generate | Check if certificate already exists"
+  stat:
+    path: "{{ ssl_certificate_path }}"
+  register: existing_cert
+  tags:
+    - ssl_generate
+
+- name: "SSL Generate | Check if private key already exists"
+  stat:
+    path: "{{ ssl_certificate_key_path }}"
+  register: existing_key
+  tags:
+    - ssl_generate
+
+- name: "SSL Generate | Generate private key"
+  openssl_privatekey:
+    path: "{{ ssl_certificate_key_path }}"
+    size: 2048
+    type: RSA
+    mode: '0600'
+    owner: root
+    group: root
+    force: "{{ ssl_force_regenerate }}"
+  when: not existing_key.stat.exists or ssl_force_regenerate | bool
+  tags:
+    - ssl_generate
+
+- name: "SSL Generate | Generate CSR (Certificate Signing Request)"
+  openssl_csr:
+    path: "{{ ssl_certificate_dir }}/server.csr"
+    privatekey_path: "{{ ssl_certificate_key_path }}"
+    country_name: "{{ ssl_self_signed_country }}"
+    state_or_province_name: "{{ ssl_self_signed_state }}"
+    locality_name: "{{ ssl_self_signed_locality }}"
+    organization_name: "{{ ssl_self_signed_organization }}"
+    organizational_unit_name: "{{ ssl_self_signed_organizational_unit }}"
+    common_name: "{{ ssl_self_signed_common_name }}"
+    email_address: "{{ ssl_self_signed_email }}"
+    force: "{{ ssl_force_regenerate }}"
+  when: not existing_cert.stat.exists or ssl_force_regenerate | bool
+  tags:
+    - ssl_generate
+
+- name: "SSL Generate | Generate self-signed certificate"
+  openssl_certificate:
+    path: "{{ ssl_certificate_path }}"
+    privatekey_path: "{{ ssl_certificate_key_path }}"
+    csr_path: "{{ ssl_certificate_dir }}/server.csr"
+    provider: selfsigned
+    selfsigned_not_after: "+{{ ssl_self_signed_days }}d"
+    mode: '0644'
+    owner: root
+    group: root
+    force: "{{ ssl_force_regenerate }}"
+  when: not existing_cert.stat.exists or ssl_force_regenerate | bool
+  tags:
+    - ssl_generate
+
+- name: "SSL Generate | Remove CSR file"
+  file:
+    path: "{{ ssl_certificate_dir }}/server.csr"
+    state: absent
+  tags:
+    - ssl_generate
+
+- name: "SSL Generate | Display certificate information"
+  command: openssl x509 -noout -text -in {{ ssl_certificate_path }}
+  register: cert_info
+  changed_when: false
+  tags:
+    - ssl_generate
+
+- name: "SSL Generate | Verify certificate and key match"
+  shell: |
+    CERT_MODULUS=$(openssl x509 -noout -modulus -in {{ ssl_certificate_path }} | openssl md5)
+    KEY_MODULUS=$(openssl rsa -noout -modulus -in {{ ssl_certificate_key_path }} | openssl md5)
+    if [ "$CERT_MODULUS" = "$KEY_MODULUS" ]; then
+      echo "Certificate and key match"
+      exit 0
+    else
+      echo "Certificate and key do NOT match"
+      exit 1
+    fi
+  register: cert_key_match
+  changed_when: false
+  tags:
+    - ssl_generate
+
+- name: "SSL Generate | Display generation summary"
+  debug:
+    msg:
+      - "Self-signed certificate generated:"
+      - "  Certificate: {{ ssl_certificate_path }}"
+      - "  Private Key: {{ ssl_certificate_key_path }}"
+      - "  Common Name: {{ ssl_self_signed_common_name }}"
+      - "  Valid For: {{ ssl_self_signed_days }} days"
+      - "  Match Check: {{ cert_key_match.stdout }}"
+  tags:
+    - ssl_generate
+
+################################################################################
+# END OF FILE: roles/ssl_tls/tasks/generate_certs.yml
+################################################################################

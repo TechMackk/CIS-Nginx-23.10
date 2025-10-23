@@ -1,0 +1,110 @@
+################################################################################
+# File: roles/ssl_tls/templates/ssl.conf.j2
+# Purpose: NGINX SSL/TLS configuration template
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+# Managed by Ansible - DO NOT EDIT MANUALLY
+# SSL/TLS Configuration
+
+########################################################################
+## SSL/TLS Protocol and Cipher Configuration
+########################################################################
+
+# SSL protocols (CIS compliant - TLS 1.2 and 1.3 only)
+ssl_protocols {{ ssl_protocols }};
+
+# Cipher suites (Mozilla Modern configuration)
+ssl_ciphers '{{ ssl_ciphers }}';
+
+# Prefer server ciphers
+ssl_prefer_server_ciphers {{ ssl_prefer_server_ciphers }};
+
+########################################################################
+## DH Parameters
+########################################################################
+
+# Diffie-Hellman parameters for DHE ciphers
+ssl_dhparam {{ ssl_dhparam_path }};
+
+########################################################################
+## Session Configuration
+########################################################################
+
+# SSL session cache
+ssl_session_cache {{ ssl_session_cache }};
+
+# SSL session timeout
+ssl_session_timeout {{ ssl_session_timeout }};
+
+# SSL session tickets (disabled for better forward secrecy)
+ssl_session_tickets {{ ssl_session_tickets }};
+
+########################################################################
+## OCSP Stapling
+########################################################################
+
+{% if ssl_stapling %}
+# OCSP stapling
+ssl_stapling on;
+ssl_stapling_verify {{ 'on' if ssl_stapling_verify else 'off' }};
+resolver 8.8.8.8 8.8.4.4 valid=300s;
+resolver_timeout {{ ssl_stapling_timeout }};
+{% if ssl_trusted_certificate is defined %}
+ssl_trusted_certificate {{ ssl_trusted_certificate }};
+{% endif %}
+{% endif %}
+
+########################################################################
+## SSL Buffer Size
+########################################################################
+
+# SSL buffer size (optimize for performance vs latency)
+ssl_buffer_size {{ ssl_buffer_size }};
+
+########################################################################
+## HSTS (HTTP Strict Transport Security)
+########################################################################
+
+{% if ssl_hsts_enabled %}
+# HSTS header
+add_header Strict-Transport-Security "max-age={{ ssl_hsts_max_age }}{% if ssl_hsts_include_subdomains %}; includeSubDomains{% endif %}{% if ssl_hsts_preload %}; preload{% endif %}" always;
+{% endif %}
+
+########################################################################
+## Additional Security Headers
+########################################################################
+
+# Prevent SSL/TLS downgrade attacks
+add_header X-Content-Type-Options "nosniff" always;
+
+# Prevent clickjacking
+add_header X-Frame-Options "SAMEORIGIN" always;
+
+# XSS protection
+add_header X-XSS-Protection "1; mode=block" always;
+
+########################################################################
+## SSL Early Data (0-RTT)
+########################################################################
+
+{% if ssl_early_data %}
+# Enable early data (0-RTT) - Use with caution, potential replay attacks
+ssl_early_data on;
+{% else %}
+# Early data disabled (recommended for security)
+# ssl_early_data off;
+{% endif %}
+
+########################################################################
+## Certificate Paths
+########################################################################
+
+# SSL certificate (configured per virtual host)
+# ssl_certificate {{ ssl_certificate_path }};
+# ssl_certificate_key {{ ssl_certificate_key_path }};
+
+################################################################################
+# END OF FILE: roles/ssl_tls/templates/ssl.conf.j2
+################################################################################

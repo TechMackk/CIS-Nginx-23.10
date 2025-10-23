@@ -1,0 +1,149 @@
+################################################################################
+# File: inventory/production/group_vars/webservers.yml
+# Purpose: Web server specific variables for PRODUCTION environment
+# Environment: PRODUCTION
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+# 
+# WARNING: Production web server configuration - change control required
+################################################################################
+
+---
+# NGINX Web Server Configuration (Production)
+
+# NGINX installation
+nginx_version: "1.20"
+nginx_repo: "https://nginx.org/packages/rhel/8/x86_64/"
+nginx_install_method: "package"
+
+# NGINX user and group
+nginx_user: "nginx"
+nginx_group: "nginx"
+
+# NGINX directories
+nginx_config_dir: "/etc/nginx"
+nginx_log_dir: "/var/log/nginx"
+nginx_cache_dir: "/var/cache/nginx"
+nginx_lib_dir: "/var/lib/nginx"
+nginx_run_dir: "/var/run"
+
+# NGINX service
+nginx_service_name: "nginx"
+nginx_service_enabled: true
+nginx_service_state: "started"
+
+# NGINX worker configuration (production optimized)
+nginx_worker_processes: "auto"
+nginx_worker_connections: 8192
+nginx_multi_accept: "on"
+nginx_worker_rlimit_nofile: 65535
+
+# NGINX performance (production tuned)
+nginx_keepalive_timeout: 65
+nginx_keepalive_requests: 1000
+nginx_client_max_body_size: "100m"
+nginx_client_body_timeout: 60
+nginx_client_header_timeout: 60
+nginx_send_timeout: 60
+nginx_reset_timedout_connection: "on"
+
+# NGINX logging (production)
+nginx_access_log_enabled: true
+nginx_access_log_format: "combined"
+nginx_error_log_level: "error"
+nginx_log_not_found: "off"
+
+# NGINX security headers (production-hardened)
+nginx_security_headers:
+  X-Frame-Options: "DENY"
+  X-Content-Type-Options: "nosniff"
+  X-XSS-Protection: "1; mode=block"
+  Referrer-Policy: "strict-origin-when-cross-origin"
+  Content-Security-Policy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
+  Strict-Transport-Security: "max-age=63072000; includeSubDomains; preload"
+  Permissions-Policy: "geolocation=(), microphone=(), camera=(), payment=()"
+
+# Hide NGINX version (mandatory)
+nginx_hide_version: true
+nginx_server_tokens: "off"
+
+# SSL/TLS configuration (production-grade, PCI-DSS compliant)
+ssl_enabled: true
+ssl_protocols: "TLSv1.3"
+ssl_ciphers: "TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256"
+ssl_prefer_server_ciphers: "off"
+ssl_session_cache: "shared:SSL:50m"
+ssl_session_timeout: "1d"
+ssl_session_tickets: "off"
+ssl_stapling: true
+ssl_stapling_verify: true
+ssl_trusted_certificate: "/etc/nginx/ssl/ca-bundle.crt"
+
+# SSL certificate paths
+ssl_certificate_path: "/etc/nginx/ssl/prod-server.crt"
+ssl_certificate_key_path: "/etc/nginx/ssl/prod-server.key"
+ssl_dhparam_path: "/etc/nginx/ssl/dhparam.pem"
+ssl_dhparam_bits: 4096
+
+# Virtual host configuration
+nginx_vhosts:
+  - server_name: "www.company.com"
+    listen_port: 80
+    listen_ssl_port: 443
+    root: "/var/www/html"
+    index: "index.html index.htm"
+    access_log: "{{ nginx_log_dir }}/prod-app-access.log"
+    error_log: "{{ nginx_log_dir }}/prod-app-error.log"
+    ssl_enabled: true
+    force_https: true
+
+# Firewall rules (strict)
+firewall_allowed_ports:
+  - 80/tcp
+  - 443/tcp
+
+firewall_allowed_sources:
+  - 10.200.0.0/16     # Production network
+  - 172.16.0.0/12     # Corporate network
+  - 203.0.113.0/24    # CDN/Load balancer IPs
+
+# Application-specific
+app_name: "production-application"
+app_version: "1.0.0"
+app_deploy_user: "nginx"
+
+# Health check
+health_check_enabled: true
+health_check_path: "/health"
+health_check_interval: 15
+
+# Rate limiting (production settings)
+rate_limiting_enabled: true
+rate_limit_requests: 1000
+rate_limit_burst: 2000
+rate_limit_zone_size: "50m"
+
+# ModSecurity WAF (enabled and enforcing)
+modsecurity_enabled: true
+modsecurity_mode: "On"
+modsecurity_rule_engine: "On"
+
+# DDoS protection
+ddos_protection_enabled: true
+connection_limit_per_ip: 50
+
+# Monitoring (comprehensive)
+nginx_status_enabled: true
+nginx_status_port: 8080
+nginx_status_path: "/nginx_status"
+nginx_status_allowed_ips:
+  - 127.0.0.1
+  - 10.200.0.0/16
+
+# Performance metrics
+enable_request_time_tracking: true
+enable_upstream_tracking: true
+
+################################################################################
+# END OF FILE: inventory/production/group_vars/webservers.yml
+################################################################################

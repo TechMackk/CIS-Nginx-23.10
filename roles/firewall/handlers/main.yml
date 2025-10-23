@@ -1,0 +1,25 @@
+################################################################################
+# File: roles/firewall/handlers/main.yml
+# Purpose: Handlers for firewall role
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+- name: restart firewalld
+  systemd:
+    name: firewalld
+    state: restarted
+  listen: "restart firewalld"
+
+- name: reload firewalld
+  command: firewall-cmd --reload
+  listen: "reload firewalld"
+
+- name: complete reload firewalld
+  command: firewall-cmd --complete-reload
+  listen: "complete reload firewalld"
+
+################################################################################
+# END OF FILE: roles/firewall/handlers/main.yml
+################################################################################

@@ -1,0 +1,92 @@
+################################################################################
+# File: roles/firewall/defaults/main.yml
+# Purpose: Default variables for firewall role
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Firewall behavior
+firewall_enabled: true
+firewall_service: "firewalld"
+
+# Firewall zones
+firewall_default_zone: "public"
+firewall_zones:
+  - public
+  - internal
+  - trusted
+
+# Allowed services (by name)
+firewall_allowed_services:
+  - ssh
+  - dhcpv6-client
+
+# Allowed ports (protocol/port format)
+firewall_allowed_ports: []
+# Example:
+# - 80/tcp
+# - 443/tcp
+# - 8080-8090/tcp
+
+# Allowed source IPs/networks
+firewall_allowed_sources: []
+# Example:
+# - 10.0.0.0/8
+# - 172.16.0.0/12
+# - 192.168.1.100
+
+# Rich rules (advanced filtering)
+firewall_rich_rules: []
+# Example:
+# - rule family="ipv4" source address="192.168.1.0/24" service name="ssh" accept
+
+# Logging configuration
+firewall_log_denied: "all"  # all, unicast, broadcast, multicast, off
+firewall_log_denied_limit: "1/m"
+
+# ICMP blocks (types to block)
+firewall_icmp_blocks: []
+# Example:
+# - echo-request
+# - echo-reply
+# - timestamp-request
+
+# Direct rules (iptables syntax)
+firewall_direct_rules: []
+
+# Masquerading (NAT)
+firewall_masquerade: false
+
+# Port forwarding
+firewall_forward_ports: []
+# Example:
+# - port: 80
+#   proto: tcp
+#   toport: 8080
+#   toaddr: 192.168.1.100
+
+# Panic mode (emergency lockdown)
+firewall_panic_mode: false
+
+# Interfaces per zone
+firewall_zone_interfaces:
+  public: []
+  internal: []
+  trusted: []
+
+# Custom zones
+firewall_custom_zones: []
+
+# Remove default services
+firewall_remove_default_services: true
+firewall_default_services_to_remove:
+  - cockpit
+  - mdns
+
+# IPv6 configuration
+firewall_ipv6_enabled: false
+
+################################################################################
+# END OF FILE: roles/firewall/defaults/main.yml
+################################################################################

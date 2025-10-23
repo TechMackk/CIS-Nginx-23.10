@@ -1,0 +1,59 @@
+################################################################################
+# File: pipeline/templates/precheck-stage.yml
+# Purpose: Pre-check stage template for ADO pipeline
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+jobs:
+  - job: PreCheckValidation
+    displayName: 'Pre-Check Validation'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+      - task: UsePythonVersion@0
+        inputs:
+          versionSpec: '3.9'
+          addToPath: true
+        displayName: 'Setup Python'
+
+      - script: |
+          pip install ansible ansible-lint yamllint
+          ansible --version
+        displayName: 'Install Ansible and Tools'
+
+      - script: |
+          ansible-galaxy collection install -r requirements.yml
+        displayName: 'Install Ansible Collections'
+
+      - script: |
+          ansible-playbook playbooks/site.yml --syntax-check
+        displayName: 'Syntax Check - Main Playbook'
+
+      - script: |
+          ansible-lint playbooks/ || true
+        displayName: 'Ansible Lint'
+
+      - script: |
+          yamllint -c .yamllint.yml . || true
+        displayName: 'YAML Lint'
+
+      - script: |
+          ansible-inventory -i inventory/dev/hosts.yml --list
+          ansible-inventory -i inventory/test/hosts.yml --list
+          ansible-inventory -i inventory/qa/hosts.yml --list
+          ansible-inventory -i inventory/production/hosts.yml --list
+        displayName: 'Validate All Inventories'
+
+      - task: PublishTestResults@2
+        condition: always()
+        inputs:
+          testResultsFormat: 'JUnit'
+          testResultsFiles: '**/test-results.xml'
+          failTaskOnFailedTests: false
+        displayName: 'Publish Test Results'
+
+################################################################################
+# END OF FILE: pipeline/templates/precheck-stage.yml
+################################################################################

@@ -1,0 +1,25 @@
+################################################################################
+# File: inventory/test/group_vars/vault.yml
+# Purpose: Encrypted secrets for TEST environment (Ansible Vault)
+# Environment: TEST
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Vault-encrypted secrets for Test environment
+# ENCRYPT THIS FILE: ansible-vault encrypt vault.yml
+
+vault_ansible_user: "ansible"
+vault_ansible_become_password: "CHANGE_ME_AND_ENCRYPT_TEST"
+vault_ssl_certificate_password: "CHANGE_ME_AND_ENCRYPT_TEST"
+vault_backup_encryption_key: "CHANGE_ME_AND_ENCRYPT_TEST"
+vault_monitoring_api_token: "CHANGE_ME_AND_ENCRYPT_TEST"
+
+# Additional test-specific secrets
+vault_test_db_password: "CHANGE_ME_AND_ENCRYPT_TEST"
+vault_test_api_key: "CHANGE_ME_AND_ENCRYPT_TEST"
+
+################################################################################
+# END OF FILE: inventory/test/group_vars/vault.yml
+################################################################################

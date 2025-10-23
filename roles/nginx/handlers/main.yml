@@ -1,0 +1,37 @@
+################################################################################
+# File: roles/nginx/handlers/main.yml
+# Purpose: Handlers for NGINX role
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+- name: restart nginx
+  systemd:
+    name: "{{ nginx_service_name }}"
+    state: restarted
+  listen: "restart nginx"
+
+- name: reload nginx
+  systemd:
+    name: "{{ nginx_service_name }}"
+    state: reloaded
+  listen: "reload nginx"
+
+- name: validate nginx config
+  command: nginx -t
+  register: nginx_validation
+  changed_when: false
+  failed_when: nginx_validation.rc != 0
+  listen: "validate nginx"
+
+- name: restart nginx after config change
+  systemd:
+    name: "{{ nginx_service_name }}"
+    state: restarted
+  when: nginx_validation.rc == 0
+  listen: "restart nginx after config change"
+
+################################################################################
+# END OF FILE: roles/nginx/handlers/main.yml
+################################################################################

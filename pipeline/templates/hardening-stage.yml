@@ -1,0 +1,104 @@
+################################################################################
+# File: pipeline/templates/hardening-stage.yml
+# Purpose: Hardening stage template for ADO pipeline
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+parameters:
+  - name: environment
+    type: string
+  - name: inventory
+    type: string
+  - name: variablesFile
+    type: string
+  - name: requireApproval
+    type: boolean
+    default: false
+  - name: batchExecution
+    type: boolean
+    default: false
+
+jobs:
+  - deployment: HardeningDeployment
+    displayName: 'Hardening Deployment - ${{ parameters.environment }}'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    environment: ${{ parameters.environment }}
+    
+    variables:
+      - template: ../${{ parameters.variablesFile }}
+    
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+            - checkout: self
+            
+            - task: UsePythonVersion@0
+              inputs:
+                versionSpec: '3.9'
+              displayName: 'Setup Python'
+
+            - script: |
+                pip install ansible
+                ansible-galaxy collection install -r requirements.yml
+              displayName: 'Install Ansible'
+
+            - task: DownloadSecureFile@1
+              name: vaultPassword
+              inputs:
+                secureFile: 'ansible-vault-password-${{ parameters.environment }}'
+              displayName: 'Download Vault Password'
+
+            - task: DownloadSecureFile@1
+              name: sshKey
+              inputs:
+                secureFile: 'ansible-ssh-key-${{ parameters.environment }}'
+              displayName: 'Download SSH Key'
+
+            - script: |
+                mkdir -p ~/.ssh
+                cp $(sshKey.secureFilePath) ~/.ssh/id_rsa
+                chmod 600 ~/.ssh/id_rsa
+              displayName: 'Setup SSH Key'
+
+            - script: |
+                ansible-playbook -i ${{ parameters.inventory }} \
+                  playbooks/precheck.yml \
+                  --vault-password-file=$(vaultPassword.secureFilePath) \
+                  -vv
+              displayName: 'Run Pre-Check'
+
+            - ${{ if eq(parameters.requireApproval, true) }}:
+              - task: ManualValidation@0
+                inputs:
+                  notifyUsers: 'devops@company.com'
+                  instructions: 'Please approve hardening for ${{ parameters.environment }} environment'
+                displayName: 'Manual Approval Required'
+
+            - script: |
+                ansible-playbook -i ${{ parameters.inventory }} \
+                  playbooks/site.yml \
+                  --vault-password-file=$(vaultPassword.secureFilePath) \
+                  ${{ if eq(parameters.batchExecution, true) }}:
+                    --limit @production_batch_1 \
+                  -vv
+              displayName: 'Execute Hardening Playbook'
+
+            - task: PublishPipelineArtifact@1
+              inputs:
+                targetPath: 'reports'
+                artifact: 'hardening-reports-${{ parameters.environment }}'
+              displayName: 'Publish Hardening Reports'
+
+            - task: PublishPipelineArtifact@1
+              inputs:
+                targetPath: 'logs'
+                artifact: 'hardening-logs-${{ parameters.environment }}'
+              displayName: 'Publish Logs'
+
+################################################################################
+# END OF FILE: pipeline/templates/hardening-stage.yml
+################################################################################

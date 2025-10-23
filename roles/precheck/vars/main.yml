@@ -1,0 +1,24 @@
+################################################################################
+# File: roles/precheck/vars/main.yml
+# Purpose: Role-specific variables (higher precedence than defaults)
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Internal role variables (do not override)
+precheck_status: "running"
+precheck_errors: []
+precheck_warnings: []
+
+# Check categories
+precheck_categories:
+  - system
+  - services
+  - network
+  - security
+  - packages
+
+################################################################################
+# END OF FILE: roles/precheck/vars/main.yml
+################################################################################

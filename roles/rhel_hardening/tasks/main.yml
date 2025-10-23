@@ -1,0 +1,101 @@
+################################################################################
+# File: roles/rhel_hardening/tasks/main.yml
+# Purpose: Main orchestration for RHEL hardening role
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Main RHEL hardening orchestration
+
+- name: "RHEL Hardening | Display role banner"
+  debug:
+    msg:
+      - "=========================================="
+      - "Role: RHEL Hardening (CIS Benchmark)"
+      - "=========================================="
+      - "Host: {{ inventory_hostname }}"
+      - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+      - "CIS Level: {{ cis_level }}"
+      - "CIS Benchmark: {{ cis_benchmark_version }}"
+      - "Strict Mode: {{ strict_cis_mode }}"
+      - "Timestamp: {{ ansible_date_time.iso8601 }}"
+      - "=========================================="
+  tags:
+    - rhel_hardening
+    - always
+
+- name: "RHEL Hardening | Verify OS compatibility"
+  assert:
+    that:
+      - ansible_distribution in ['RedHat', 'CentOS', 'Rocky', 'AlmaLinux']
+      - ansible_distribution_major_version in ['8', '9']
+    fail_msg: "This role only supports RHEL/CentOS/Rocky/AlmaLinux 8 or 9"
+    success_msg: "OS compatibility verified"
+  tags:
+    - rhel_hardening
+    - always
+
+- name: "RHEL Hardening | Section 1 - Filesystem Hardening"
+  include_tasks: filesystem.yml
+  tags:
+    - rhel_hardening
+    - filesystem
+    - cis_1
+
+- name: "RHEL Hardening | Section 2 - Services and Daemons"
+  include_tasks: services.yml
+  tags:
+    - rhel_hardening
+    - services
+    - cis_2
+
+- name: "RHEL Hardening | Section 3 - Network Configuration"
+  include_tasks: network.yml
+  tags:
+    - rhel_hardening
+    - network
+    - cis_3
+
+- name: "RHEL Hardening | Section 4 - Logging and Auditing"
+  include_tasks: logging.yml
+  tags:
+    - rhel_hardening
+    - logging
+    - cis_4
+
+- name: "RHEL Hardening | Section 5 - Access Control"
+  include_tasks: access_control.yml
+  tags:
+    - rhel_hardening
+    - access_control
+    - cis_5
+
+- name: "RHEL Hardening | Section 6 - System Maintenance"
+  include_tasks: system_maintenance.yml
+  tags:
+    - rhel_hardening
+    - system_maintenance
+    - cis_6
+
+- name: "RHEL Hardening | Display completion summary"
+  debug:
+    msg:
+      - "=========================================="
+      - "RHEL Hardening Complete"
+      - "=========================================="
+      - "Host: {{ inventory_hostname }}"
+      - "CIS Level: {{ cis_level }} applied"
+      - "Status: SUCCESS"
+      - "=========================================="
+      - "IMPORTANT: Verify system functionality"
+      - "Review hardening logs for any warnings"
+      - "Run validation playbook to verify compliance"
+      - "=========================================="
+  tags:
+    - rhel_hardening
+    - always
+
+################################################################################
+# END OF FILE: roles/rhel_hardening/tasks/main.yml
+################################################################################

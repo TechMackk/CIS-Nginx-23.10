@@ -1,0 +1,78 @@
+################################################################################
+# File: roles/validation/tasks/validate_nginx.yml
+# Purpose: NGINX configuration validation checks
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# NGINX validation
+
+- name: "Validate NGINX | Check NGINX service"
+  systemd:
+    name: nginx
+  register: nginx_status
+  changed_when: false
+  failed_when: false
+  tags:
+    - validate_nginx
+
+- name: "Validate NGINX | Record NGINX service check"
+  set_fact:
+    validation_results: "{{ validation_results | combine({'checks': validation_results.checks + [{'name': 'NGINX Running', 'status': 'PASS' if nginx_status.status.ActiveState == 'active' else 'FAIL', 'value': nginx_status.status.ActiveState}]}) }}"
+    validation_results: "{{ validation_results | combine({'total_checks': validation_results.total_checks + 1, 'passed': validation_results.passed + 1 if nginx_status.status.ActiveState == 'active' else validation_results.passed, 'failed': validation_results.failed + 1 if nginx_status.status.ActiveState != 'active' else validation_results.failed}) }}"
+  tags:
+    - validate_nginx
+
+- name: "Validate NGINX | Test NGINX configuration"
+  command: nginx -t
+  register: nginx_config_test
+  changed_when: false
+  failed_when: false
+  tags:
+    - validate_nginx
+
+- name: "Validate NGINX | Record NGINX config test"
+  set_fact:
+    validation_results: "{{ validation_results | combine({'checks': validation_results.checks + [{'name': 'NGINX Config Valid', 'status': 'PASS' if nginx_config_test.rc == 0 else 'FAIL', 'value': 'Valid' if nginx_config_test.rc == 0 else 'Invalid'}]}) }}"
+    validation_results: "{{ validation_results | combine({'total_checks': validation_results.total_checks + 1, 'passed': validation_results.passed + 1 if nginx_config_test.rc == 0 else validation_results.passed, 'failed': validation_results.failed + 1 if nginx_config_test.rc != 0 else validation_results.failed}) }}"
+  tags:
+    - validate_nginx
+
+- name: "Validate NGINX | Check server_tokens disabled"
+  shell: |
+    grep -r "server_tokens off" /etc/nginx/
+  register: nginx_server_tokens
+  changed_when: false
+  failed_when: false
+  tags:
+    - validate_nginx
+
+- name: "Validate NGINX | Record server_tokens check"
+  set_fact:
+    validation_results: "{{ validation_results | combine({'checks': validation_results.checks + [{'name': 'NGINX Version Hidden', 'status': 'PASS' if nginx_server_tokens.rc == 0 else 'WARN', 'value': 'Hidden' if nginx_server_tokens.rc == 0 else 'Exposed'}]}) }}"
+    validation_results: "{{ validation_results | combine({'total_checks': validation_results.total_checks + 1, 'passed': validation_results.passed + 1 if nginx_server_tokens.rc == 0 else validation_results.passed, 'warnings': validation_results.warnings + 1 if nginx_server_tokens.rc != 0 else validation_results.warnings}) }}"
+  tags:
+    - validate_nginx
+
+- name: "Validate NGINX | Check security headers"
+  shell: |
+    curl -s -I http://localhost | grep -i "{{ item }}" || echo "NOT_FOUND"
+  register: nginx_headers
+  changed_when: false
+  failed_when: false
+  loop: "{{ nginx_required_headers }}"
+  tags:
+    - validate_nginx
+
+- name: "Validate NGINX | Record security header checks"
+  set_fact:
+    validation_results: "{{ validation_results | combine({'checks': validation_results.checks + [{'name': 'Security Header ' + item.item, 'status': 'PASS' if 'NOT_FOUND' not in item.stdout else 'WARN', 'value': 'Present' if 'NOT_FOUND' not in item.stdout else 'Missing'}]}) }}"
+    validation_results: "{{ validation_results | combine({'total_checks': validation_results.total_checks + 1, 'passed': validation_results.passed + 1 if 'NOT_FOUND' not in item.stdout else validation_results.passed, 'warnings': validation_results.warnings + 1 if 'NOT_FOUND' in item.stdout else validation_results.warnings}) }}"
+  loop: "{{ nginx_headers.results }}"
+  tags:
+    - validate_nginx
+
+################################################################################
+# END OF FILE: roles/validation/tasks/validate_nginx.yml
+################################################################################

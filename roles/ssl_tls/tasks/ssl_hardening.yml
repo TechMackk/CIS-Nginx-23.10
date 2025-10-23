@@ -1,0 +1,135 @@
+################################################################################
+# File: roles/ssl_tls/tasks/ssl_hardening.yml
+# Purpose: SSL/TLS security hardening tasks
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# SSL/TLS hardening
+
+- name: "SSL Harden | Configure HSTS header"
+  lineinfile:
+    path: "{{ nginx_config_dir | default('/etc/nginx') }}/conf.d/ssl.conf"
+    regexp: '^(\s*)add_header Strict-Transport-Security'
+    line: "    add_header Strict-Transport-Security \"max-age={{ ssl_hsts_max_age }}{% if ssl_hsts_include_subdomains %}; includeSubDomains{% endif %}{% if ssl_hsts_preload %}; preload{% endif %}\" always;"
+    insertafter: "# HSTS"
+  when: ssl_hsts_enabled | bool
+  notify: reload nginx ssl
+  tags:
+    - ssl_harden
+    - hsts
+
+- name: "SSL Harden | Disable SSL session tickets"
+  lineinfile:
+    path: "{{ nginx_config_dir | default('/etc/nginx') }}/conf.d/ssl.conf"
+    regexp: '^(\s*)ssl_session_tickets'
+    line: "    ssl_session_tickets {{ ssl_session_tickets }};"
+  notify: reload nginx ssl
+  tags:
+    - ssl_harden
+
+- name: "SSL Harden | Configure OCSP stapling"
+  blockinfile:
+    path: "{{ nginx_config_dir | default('/etc/nginx') }}/conf.d/ssl.conf"
+    marker: "# {mark} OCSP STAPLING CONFIGURATION"
+    block: |
+      ssl_stapling {{ 'on' if ssl_stapling else 'off' }};
+      ssl_stapling_verify {{ 'on' if ssl_stapling_verify else 'off' }};
+      {% if ssl_stapling_verify and ssl_trusted_certificate is defined %}
+      ssl_trusted_certificate {{ ssl_trusted_certificate }};
+      {% endif %}
+    insertbefore: "^}"
+  when: ssl_stapling | bool
+  notify: reload nginx ssl
+  tags:
+    - ssl_harden
+    - ocsp
+
+- name: "SSL Harden | Set SSL buffer size"
+  lineinfile:
+    path: "{{ nginx_config_dir | default('/etc/nginx') }}/conf.d/ssl.conf"
+    regexp: '^(\s*)ssl_buffer_size'
+    line: "    ssl_buffer_size {{ ssl_buffer_size }};"
+  notify: reload nginx ssl
+  tags:
+    - ssl_harden
+
+- name: "SSL Harden | Disable SSL compression (CRIME attack mitigation)"
+  lineinfile:
+    path: "{{ nginx_config_dir | default('/etc/nginx') }}/conf.d/ssl.conf"
+    line: "    ssl_compression off;"
+    insertafter: "ssl_protocols"
+  notify: reload nginx ssl
+  tags:
+    - ssl_harden
+
+- name: "SSL Harden | Configure SSL verify depth"
+  lineinfile:
+    path: "{{ nginx_config_dir | default('/etc/nginx') }}/conf.d/ssl.conf"
+    line: "    ssl_verify_depth {{ ssl_verify_depth }};"
+    insertafter: "ssl_protocols"
+  notify: reload nginx ssl
+  tags:
+    - ssl_harden
+
+- name: "SSL Harden | Disable TLS 1.0 and 1.1 in kernel"
+  sysctl:
+    name: net.ipv4.tcp_tls_tx
+    value: '0'
+    state: present
+    reload: yes
+  ignore_errors: yes
+  tags:
+    - ssl_harden
+
+- name: "SSL Harden | Configure certificate validation"
+  shell: |
+    openssl verify -CAfile {{ ssl_certificate_chain_path }} {{ ssl_certificate_path }}
+  register: cert_validation
+  changed_when: false
+  failed_when: false
+  when:
+    - ssl_validate_certificate | bool
+    - ssl_certificate_chain_path is defined
+  tags:
+    - ssl_harden
+
+- name: "SSL Harden | Display certificate validation results"
+  debug:
+    msg: "{{ cert_validation.stdout }}"
+  when:
+    - ssl_validate_certificate | bool
+    - cert_validation.stdout is defined
+  tags:
+    - ssl_harden
+
+- name: "SSL Harden | Run SSL Labs test (if available)"
+  debug:
+    msg:
+      - "Manual SSL validation recommended:"
+      - "  1. SSL Labs: https://www.ssllabs.com/ssltest/"
+      - "  2. testssl.sh: https://testssl.sh/"
+      - "  3. nmap: nmap --script ssl-enum-ciphers -p 443 {{ ansible_fqdn }}"
+  tags:
+    - ssl_harden
+
+- name: "SSL Harden | Display hardening summary"
+  debug:
+    msg:
+      - "=========================================="
+      - "SSL/TLS Hardening Complete"
+      - "=========================================="
+      - "Protocols: {{ ssl_protocols }}"
+      - "Cipher Preference: {{ ssl_prefer_server_ciphers }}"
+      - "DH Parameters: {{ ssl_dhparam_bits }} bits"
+      - "Session Tickets: {{ ssl_session_tickets }}"
+      - "HSTS: {{ 'Enabled' if ssl_hsts_enabled else 'Disabled' }}"
+      - "OCSP Stapling: {{ 'Enabled' if ssl_stapling else 'Disabled' }}"
+      - "=========================================="
+  tags:
+    - ssl_harden
+
+################################################################################
+# END OF FILE: roles/ssl_tls/tasks/ssl_hardening.yml
+################################################################################

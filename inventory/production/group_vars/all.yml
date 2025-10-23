@@ -1,0 +1,124 @@
+################################################################################
+# File: inventory/production/group_vars/all.yml
+# Purpose: Global variables for all hosts in PRODUCTION environment
+# Environment: PRODUCTION
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+# 
+# WARNING: Production configuration - handle with extreme care
+################################################################################
+
+---
+# Global Configuration for Production Environment
+
+# Environment identification
+environment_name: "production"
+environment_tier: "prod"
+deployment_region: "us-east-1"
+
+# Timezone
+timezone: "UTC"
+
+# NTP servers (enterprise NTP)
+ntp_servers:
+  - ntp1.company.com
+  - ntp2.company.com
+  - 0.rhel.pool.ntp.org
+
+# DNS servers (internal)
+dns_servers:
+  - 10.200.1.10
+  - 10.200.1.11
+
+# Backup configuration (critical for production)
+backup_root_dir: "/backup"
+backup_retention_days: 90
+backup_enabled: true
+backup_verification_enabled: true
+backup_offsite_enabled: true
+backup_offsite_location: "azure-blob-prod-backups"
+
+# Log retention (compliance requirement)
+log_retention_days: 365
+log_aggregation_server: "logs-prod.company.com"
+siem_integration_enabled: true
+
+# Repository configuration
+rhel_repos_enabled:
+  - rhel-8-for-x86_64-baseos-rpms
+  - rhel-8-for-x86_64-appstream-rpms
+  - rhel-8-for-x86_64-supplementary-rpms
+
+# Package manager (strict control)
+yum_update_on_hardening: false
+yum_exclude_packages:
+  - kernel*
+  - ansible
+  - glibc*
+
+# SELinux (enforcing mandatory)
+selinux_state: enforcing
+selinux_policy: targeted
+
+# Firewall (strict rules)
+firewall_enabled: true
+firewall_default_zone: drop
+firewall_log_denied: all
+
+# SSH configuration (hardened)
+ssh_port: 22
+ssh_permit_root_login: "no"
+ssh_password_authentication: "no"
+ssh_max_auth_tries: 2
+ssh_max_sessions: 3
+ssh_allowed_groups: "ansible devops"
+ssh_client_alive_interval: 300
+ssh_client_alive_count_max: 2
+
+# User management
+admin_users:
+  - ansible
+  - devops
+
+# Notifications (critical alerts)
+notification_email: "devops-prod@company.com"
+notification_pager: "oncall@company.com"
+smtp_relay: "smtp-prod.company.com"
+
+# CIS hardening (Level 2 - maximum security)
+cis_level: 2
+cis_apply_all: true
+cis_enforce_all: true
+
+# AIDE (mandatory)
+aide_enabled: true
+aide_cron_schedule: "0 5 * * *"
+aide_email_alerts: true
+
+# Auditd (mandatory)
+auditd_enabled: true
+auditd_max_log_file: 200
+auditd_max_log_file_action: rotate
+auditd_space_left: 75
+auditd_space_left_action: email
+auditd_admin_space_left: 50
+auditd_admin_space_left_action: halt
+
+# Automatic updates (disabled - manual change control)
+auto_updates_enabled: false
+
+# Performance tuning
+enable_performance_tuning: true
+
+# Debug mode (disabled in production)
+debug_mode: false
+verbose_logging: false
+
+# Compliance and security
+compliance_scanning_enabled: true
+vulnerability_scanning_enabled: true
+penetration_testing_schedule: quarterly
+
+################################################################################
+# END OF FILE: inventory/production/group_vars/all.yml
+################################################################################

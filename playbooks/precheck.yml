@@ -1,0 +1,113 @@
+################################################################################
+# File: playbooks/precheck.yml
+# Purpose: Pre-flight system readiness validation
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+#
+# Description:
+#   Validates system readiness before applying CIS hardening.
+#   Checks OS version, connectivity, required packages, and prerequisites.
+#
+# Usage:
+#   ansible-playbook -i inventory/dev/hosts.yml playbooks/precheck.yml
+#
+# Exit Behavior:
+#   Fails fast if any critical check fails to prevent partial hardening.
+################################################################################
+
+---
+- name: "Pre-Check: System Readiness Validation"
+  hosts: all
+  gather_facts: true
+  become: true
+  
+  vars:
+    precheck_fail_on_error: true
+    precheck_report_file: "precheck-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.json"
+
+  tags:
+    - precheck
+    - always
+
+  tasks:
+    - name: "Display pre-check banner"
+      debug:
+        msg:
+          - "=========================================="
+          - "Pre-Check: System Readiness Validation"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "Environment: {{ environment_name | default('undefined') }}"
+          - "=========================================="
+      tags: always
+
+    - name: "Execute precheck role"
+      include_role:
+        name: precheck
+      tags:
+        - precheck
+
+    - name: "Display pre-check results"
+      debug:
+        msg:
+          - "=========================================="
+          - "Pre-Check Status: PASSED"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Kernel: {{ ansible_kernel }}"
+          - "Architecture: {{ ansible_architecture }}"
+          - "Total Memory: {{ ansible_memtotal_mb }} MB"
+          - "Available Disk: {{ ansible_mounts[0].size_available | human_readable }}"
+          - "=========================================="
+      tags: always
+
+    - name: "Generate pre-check report"
+      copy:
+        content: |
+          {
+            "timestamp": "{{ ansible_date_time.iso8601 }}",
+            "hostname": "{{ inventory_hostname }}",
+            "environment": "{{ environment_name | default('undefined') }}",
+            "precheck_status": "PASSED",
+            "system_info": {
+              "os": "{{ ansible_distribution }} {{ ansible_distribution_version }}",
+              "kernel": "{{ ansible_kernel }}",
+              "architecture": "{{ ansible_architecture }}",
+              "memory_mb": {{ ansible_memtotal_mb }},
+              "disk_available": "{{ ansible_mounts[0].size_available }}",
+              "uptime_seconds": {{ ansible_uptime_seconds }}
+            }
+          }
+        dest: "/tmp/{{ precheck_report_file }}"
+      tags: always
+
+    - name: "Fetch pre-check report to control node"
+      fetch:
+        src: "/tmp/{{ precheck_report_file }}"
+        dest: "reports/{{ precheck_report_file }}"
+        flat: yes
+      tags: always
+
+  rescue:
+    - name: "Pre-check failed"
+      debug:
+        msg:
+          - "=========================================="
+          - "Pre-Check Status: FAILED"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "Review errors above for details"
+          - "Hardening aborted to prevent issues"
+          - "=========================================="
+      tags: always
+
+    - name: "Fail playbook on pre-check failure"
+      fail:
+        msg: "Pre-check failed on {{ inventory_hostname }}. Aborting hardening process."
+      when: precheck_fail_on_error | bool
+      tags: always
+
+################################################################################
+# END OF FILE: playbooks/precheck.yml
+################################################################################

@@ -1,0 +1,107 @@
+################################################################################
+# File: tests/test_backup.yml
+# Purpose: Test backup role functionality
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+#
+# Usage: ansible-playbook -i inventory/dev/hosts.yml tests/test_backup.yml
+################################################################################
+
+---
+- name: "Test: Backup Role Validation"
+  hosts: all
+  gather_facts: true
+  become: true
+  
+  vars:
+    test_backup_dir: "/tmp/test_backup_{{ ansible_date_time.epoch }}"
+  
+  tasks:
+    - name: "Test | Display test banner"
+      debug:
+        msg:
+          - "=========================================="
+          - "Backup Role Test Suite"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "Test Backup Dir: {{ test_backup_dir }}"
+          - "=========================================="
+    
+    - name: "Test | Create test backup directory"
+      file:
+        path: "{{ test_backup_dir }}"
+        state: directory
+        mode: '0700'
+    
+    - name: "Test | Verify backup directory created"
+      stat:
+        path: "{{ test_backup_dir }}"
+      register: backup_dir_stat
+      failed_when: not backup_dir_stat.stat.exists
+    
+    - name: "Test | Display directory status"
+      debug:
+        msg: "✓ Backup directory created: {{ test_backup_dir }}"
+    
+    - name: "Test | Create test files to backup"
+      copy:
+        content: |
+          # Test configuration file
+          test_key=test_value
+          timestamp={{ ansible_date_time.iso8601 }}
+        dest: "{{ test_backup_dir }}/test_config.conf"
+        mode: '0644'
+    
+    - name: "Test | Create backup archive"
+      archive:
+        path: "{{ test_backup_dir }}"
+        dest: "{{ test_backup_dir }}.tar.gz"
+        format: gz
+    
+    - name: "Test | Verify backup archive created"
+      stat:
+        path: "{{ test_backup_dir }}.tar.gz"
+      register: backup_archive_stat
+      failed_when: not backup_archive_stat.stat.exists
+    
+    - name: "Test | Display archive info"
+      debug:
+        msg: "✓ Backup archive created: {{ (backup_archive_stat.stat.size / 1024) | round(2) }}KB"
+    
+    - name: "Test | Verify archive can be extracted"
+      unarchive:
+        src: "{{ test_backup_dir }}.tar.gz"
+        dest: "/tmp/"
+        remote_src: yes
+      register: extract_result
+    
+    - name: "Test | Verify extracted files"
+      stat:
+        path: "/tmp{{ test_backup_dir }}/test_config.conf"
+      register: extracted_file
+      failed_when: not extracted_file.stat.exists
+    
+    - name: "Test | Cleanup test files"
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ test_backup_dir }}"
+        - "{{ test_backup_dir }}.tar.gz"
+        - "/tmp{{ test_backup_dir }}"
+    
+    - name: "Test | Display test summary"
+      debug:
+        msg:
+          - "=========================================="
+          - "Backup Test Results: PASSED"
+          - "=========================================="
+          - "✓ Backup directory creation: PASSED"
+          - "✓ Archive creation: PASSED"
+          - "✓ Archive extraction: PASSED"
+          - "✓ File integrity: PASSED"
+          - "=========================================="
+
+################################################################################
+# END OF FILE: tests/test_backup.yml
+################################################################################

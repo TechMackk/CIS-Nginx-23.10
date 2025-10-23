@@ -1,0 +1,224 @@
+################################################################################
+# File: roles/nginx/tasks/harden.yml
+# Purpose: NGINX security hardening tasks
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# NGINX security hardening
+
+- name: "NGINX Harden | Set restrictive permissions on nginx.conf"
+  file:
+    path: "{{ nginx_config_file }}"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - nginx_harden
+
+- name: "NGINX Harden | Set permissions on configuration directory"
+  file:
+    path: "{{ nginx_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - nginx_harden
+
+- name: "NGINX Harden | Secure SSL directory permissions"
+  file:
+    path: "{{ nginx_config_dir }}/ssl"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  tags:
+    - nginx_harden
+    - ssl
+
+- name: "NGINX Harden | Remove unnecessary NGINX modules"
+  lineinfile:
+    path: "{{ nginx_config_file }}"
+    regexp: "{{ item }}"
+    state: absent
+  loop:
+    - 'autoindex'
+    - 'ssi'
+  notify: reload nginx
+  tags:
+    - nginx_harden
+
+- name: "NGINX Harden | Disable autoindex globally"
+  lineinfile:
+    path: "{{ nginx_config_dir }}/conf.d/security.conf"
+    line: "    autoindex off;"
+    insertafter: "http {"
+  notify: reload nginx
+  tags:
+    - nginx_harden
+
+- name: "NGINX Harden | Configure rate limiting zones"
+  blockinfile:
+    path: "{{ nginx_config_dir }}/conf.d/rate-limit.conf"
+    create: yes
+    owner: root
+    group: root
+    mode: '0644'
+    block: |
+      # Rate limiting configuration
+      limit_req_zone $binary_remote_addr zone={{ rate_limit_zone }}:{{ rate_limit_zone_size }} rate={{ rate_limit_requests }}r/s;
+      limit_req_status 429;
+  when: rate_limiting_enabled | bool
+  notify: reload nginx
+  tags:
+    - nginx_harden
+    - rate_limit
+
+- name: "NGINX Harden | Configure connection limiting"
+  blockinfile:
+    path: "{{ nginx_config_dir }}/conf.d/conn-limit.conf"
+    create: yes
+    owner: root
+    group: root
+    mode: '0644'
+    block: |
+      # Connection limiting configuration
+      limit_conn_zone $binary_remote_addr zone={{ connection_limit_zone }}:{{ connection_limit_zone_size }};
+      limit_conn_status 429;
+  when: connection_limit_enabled | bool
+  notify: reload nginx
+  tags:
+    - nginx_harden
+    - ddos_protection
+
+- name: "NGINX Harden | Remove default HTML content"
+  file:
+    path: "/usr/share/nginx/html/index.html"
+    state: absent
+  when: not nginx_default_server_enabled
+  tags:
+    - nginx_harden
+
+- name: "NGINX Harden | Create custom error pages directory"
+  file:
+    path: "{{ nginx_config_dir }}/error-pages"
+    state: directory
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_group }}"
+    mode: '0755'
+  tags:
+    - nginx_harden
+
+- name: "NGINX Harden | Deploy custom 403 error page"
+  copy:
+    content: |
+      <!DOCTYPE html>
+      <html>
+      <head><title>403 Forbidden</title></head>
+      <body><h1>403 Forbidden</h1></body>
+      </html>
+    dest: "{{ nginx_config_dir }}/error-pages/403.html"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_group }}"
+    mode: '0644'
+  tags:
+    - nginx_harden
+
+- name: "NGINX Harden | Deploy custom 404 error page"
+  copy:
+    content: |
+      <!DOCTYPE html>
+      <html>
+      <head><title>404 Not Found</title></head>
+      <body><h1>404 Not Found</h1></body>
+      </html>
+    dest: "{{ nginx_config_dir }}/error-pages/404.html"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_group }}"
+    mode: '0644'
+  tags:
+    - nginx_harden
+
+- name: "NGINX Harden | Configure SELinux context for NGINX"
+  sefcontext:
+    target: "{{ item.target }}"
+    setype: "{{ item.setype }}"
+    state: present
+  loop:
+    - { target: "{{ nginx_log_dir }}(/.*)?", setype: 'httpd_log_t' }
+    - { target: "{{ nginx_lib_dir }}(/.*)?", setype: 'httpd_sys_content_t' }
+    - { target: "{{ nginx_cache_dir }}(/.*)?", setype: 'httpd_cache_t' }
+  when:
+    - ansible_selinux.status is defined
+    - ansible_selinux.status == "enabled"
+  tags:
+    - nginx_harden
+    - selinux
+
+- name: "NGINX Harden | Apply SELinux context"
+  command: restorecon -Rv {{ item }}
+  loop:
+    - "{{ nginx_log_dir }}"
+    - "{{ nginx_lib_dir }}"
+    - "{{ nginx_cache_dir }}"
+  when:
+    - ansible_selinux.status is defined
+    - ansible_selinux.status == "enabled"
+  changed_when: false
+  tags:
+    - nginx_harden
+    - selinux
+
+- name: "NGINX Harden | Configure log rotation"
+  copy:
+    content: |
+      {{ nginx_log_dir }}/*.log {
+          daily
+          missingok
+          rotate 14
+          compress
+          delaycompress
+          notifempty
+          create 0640 {{ nginx_user }} {{ nginx_group }}
+          sharedscripts
+          postrotate
+              if [ -f {{ nginx_pid_file }} ]; then
+                  kill -USR1 `cat {{ nginx_pid_file }}`
+              fi
+          endscript
+      }
+    dest: /etc/logrotate.d/nginx
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - nginx_harden
+    - logging
+
+- name: "NGINX Harden | Verify NGINX is not running as root"
+  shell: ps aux | grep nginx | grep -v grep | awk '{print $1}' | sort -u
+  register: nginx_user_check
+  changed_when: false
+  failed_when: "'root' in nginx_user_check.stdout and nginx_user_check.stdout_lines | length > 1"
+  tags:
+    - nginx_harden
+
+- name: "NGINX Harden | Display hardening completion"
+  debug:
+    msg:
+      - "=========================================="
+      - "NGINX Hardening Complete"
+      - "=========================================="
+      - "Version Hidden: {{ nginx_hide_version }}"
+      - "Rate Limiting: {{ rate_limiting_enabled }}"
+      - "Connection Limiting: {{ connection_limit_enabled }}"
+      - "Security Headers: Enabled"
+      - "=========================================="
+  tags:
+    - nginx_harden
+
+################################################################################
+# END OF FILE: roles/nginx/tasks/harden.yml
+################################################################################

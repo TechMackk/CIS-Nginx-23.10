@@ -1,0 +1,157 @@
+################################################################################
+# File: playbooks/harden_rhel.yml
+# Purpose: Apply CIS benchmark hardening controls to RHEL OS
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+#
+# Description:
+#   Implements CIS RHEL 8/9 benchmark hardening controls across all categories:
+#   - Filesystem hardening (CIS Section 1)
+#   - Services and daemons (CIS Section 2)
+#   - Network configuration (CIS Section 3)
+#   - Logging and auditing (CIS Section 4)
+#   - Access control (CIS Section 5)
+#   - System maintenance (CIS Section 6)
+#
+# Usage:
+#   ansible-playbook -i inventory/dev/hosts.yml playbooks/harden_rhel.yml
+#   ansible-playbook -i inventory/dev/hosts.yml playbooks/harden_rhel.yml --tags filesystem
+#
+# CIS Level:
+#   Controlled by cis_level variable (1 or 2)
+################################################################################
+
+---
+- name: "Harden: RHEL Operating System (CIS Benchmark)"
+  hosts: all
+  gather_facts: true
+  become: true
+  
+  vars:
+    hardening_timestamp: "{{ ansible_date_time.iso8601 }}"
+    cis_level: "{{ cis_level | default(1) }}"
+    cis_apply_all: "{{ cis_apply_all | default(true) }}"
+
+  tags:
+    - harden
+    - harden_rhel
+    - cis
+
+  pre_tasks:
+    - name: "Display RHEL hardening banner"
+      debug:
+        msg:
+          - "=========================================="
+          - "Hardening: RHEL Operating System"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "CIS Level: {{ cis_level }}"
+          - "Strict Mode: {{ strict_cis_mode | default(false) }}"
+          - "Timestamp: {{ hardening_timestamp }}"
+          - "=========================================="
+
+    - name: "Verify OS compatibility"
+      assert:
+        that:
+          - ansible_distribution == "RedHat" or ansible_distribution == "CentOS" or ansible_distribution == "Rocky"
+          - ansible_distribution_major_version in ['8', '9']
+        fail_msg: "This playbook only supports RHEL/CentOS/Rocky 8.x or 9.x"
+        success_msg: "OS compatibility verified: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+
+    - name: "Ensure backup exists before hardening"
+      stat:
+        path: "{{ backup_root_dir }}/LAST_BACKUP"
+      register: backup_check
+
+    - name: "Warn if no backup exists"
+      debug:
+        msg:
+          - "WARNING: No backup detected!"
+          - "It is strongly recommended to run backup playbook first."
+          - "Proceeding in 5 seconds... (Press Ctrl+C to abort)"
+      when: not backup_check.stat.exists
+
+    - name: "Pause for backup warning"
+      pause:
+        seconds: 5
+      when: not backup_check.stat.exists
+
+  tasks:
+    - name: "Execute RHEL hardening role"
+      include_role:
+        name: rhel_hardening
+      tags:
+        - harden_rhel
+
+  post_tasks:
+    - name: "Verify SELinux is enforcing"
+      command: getenforce
+      register: selinux_status
+      changed_when: false
+
+    - name: "Display SELinux status"
+      debug:
+        msg: "SELinux Status: {{ selinux_status.stdout }}"
+
+    - name: "Verify auditd service"
+      systemd:
+        name: auditd
+        state: started
+        enabled: true
+      check_mode: yes
+      register: auditd_check
+
+    - name: "Display hardening completion"
+      debug:
+        msg:
+          - "=========================================="
+          - "RHEL Hardening Status: COMPLETE"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "CIS Level Applied: {{ cis_level }}"
+          - "SELinux: {{ selinux_status.stdout }}"
+          - "Auditd: {{ 'Active' if auditd_check is success else 'Check Failed' }}"
+          - "Completion Time: {{ ansible_date_time.iso8601 }}"
+          - "=========================================="
+
+    - name: "Generate RHEL hardening report"
+      copy:
+        content: |
+          {
+            "timestamp": "{{ ansible_date_time.iso8601 }}",
+            "hostname": "{{ inventory_hostname }}",
+            "playbook": "harden_rhel",
+            "cis_level": {{ cis_level }},
+            "os": "{{ ansible_distribution }} {{ ansible_distribution_version }}",
+            "kernel": "{{ ansible_kernel }}",
+            "selinux_status": "{{ selinux_status.stdout }}",
+            "status": "COMPLETE"
+          }
+        dest: "/tmp/rhel-hardening-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.json"
+
+    - name: "Fetch hardening report"
+      fetch:
+        src: "/tmp/rhel-hardening-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.json"
+        dest: "reports/rhel-hardening-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.json"
+        flat: yes
+
+  rescue:
+    - name: "RHEL hardening failed"
+      debug:
+        msg:
+          - "=========================================="
+          - "RHEL Hardening Status: FAILED"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "Review errors above"
+          - "Rollback may be required"
+          - "=========================================="
+
+    - name: "Fail playbook"
+      fail:
+        msg: "RHEL hardening failed on {{ inventory_hostname }}"
+
+################################################################################
+# END OF FILE: playbooks/harden_rhel.yml
+################################################################################

@@ -1,0 +1,87 @@
+################################################################################
+# File: roles/rollback/tasks/main.yml
+# Purpose: Main orchestration for rollback role
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Main rollback orchestration
+
+- name: "Rollback | Display CRITICAL WARNING"
+  debug:
+    msg:
+      - "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+      - "!!!    CRITICAL WARNING - ROLLBACK  !!!"
+      - "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+      - "This will REVERT ALL hardening changes!"
+      - "Host: {{ inventory_hostname }}"
+      - "Backup: {{ backup_timestamp }}"
+      - "Timestamp: {{ rollback_timestamp }}"
+      - "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  tags:
+    - rollback
+    - always
+
+- name: "Rollback | Require manual confirmation"
+  pause:
+    prompt: |
+      
+      ⚠️  ROLLBACK CONFIRMATION REQUIRED ⚠️
+      
+      You are about to ROLLBACK hardening on: {{ inventory_hostname }}
+      
+      This action will:
+      - Restore backed-up configuration files
+      - Restart critical services
+      - Revert CIS hardening controls
+      
+      Type 'YES' to confirm rollback, or press Ctrl+C to abort: 
+  register: rollback_confirm
+  when: rollback_confirmation_required | bool
+  tags:
+    - rollback
+
+- name: "Rollback | Verify confirmation"
+  assert:
+    that:
+      - rollback_confirm.user_input == "YES"
+    fail_msg: "Rollback aborted. Confirmation not received."
+    success_msg: "Rollback confirmed. Proceeding..."
+  when: rollback_confirmation_required | bool
+  tags:
+    - rollback
+
+- name: "Rollback | Restore configuration files"
+  include_tasks: restore_configs.yml
+  tags:
+    - rollback
+    - restore_configs
+
+- name: "Rollback | Restore services"
+  include_tasks: restore_services.yml
+  tags:
+    - rollback
+    - restore_services
+
+- name: "Rollback | Display completion summary"
+  debug:
+    msg:
+      - "=========================================="
+      - "Rollback Status: COMPLETE"
+      - "=========================================="
+      - "Host: {{ inventory_hostname }}"
+      - "Restored Backup: {{ backup_timestamp }}"
+      - "Completion Time: {{ ansible_date_time.iso8601 }}"
+      - "=========================================="
+      - "IMPORTANT: Verify system functionality"
+      - "Services have been restarted"
+      - "Manual verification recommended"
+      - "=========================================="
+  tags:
+    - rollback
+    - always
+
+################################################################################
+# END OF FILE: roles/rollback/tasks/main.yml
+################################################################################

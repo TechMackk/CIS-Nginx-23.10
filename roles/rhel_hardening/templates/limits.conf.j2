@@ -1,0 +1,190 @@
+################################################################################
+# File: roles/rhel_hardening/templates/limits.conf.j2
+# Purpose: Resource limits configuration for security hardening
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+# Reference: CIS RHEL 8/9 Benchmark Section 1.5.1
+################################################################################
+
+# Managed by Ansible - DO NOT EDIT MANUALLY
+# Last updated: {{ ansible_date_time.iso8601 }}
+# Environment: {{ environment_name | default('undefined') }}
+
+################################################################################
+# /etc/security/limits.conf
+#
+# Each line describes a limit for a user in the form:
+#
+# <domain>  <type>  <item>  <value>
+#
+# Where:
+# <domain> can be:
+#   - a username
+#   - a group name, with @group syntax
+#   - the wildcard *, for default entry
+#   - the wildcard %, can be also used with %group syntax
+#
+# <type> can have the two values:
+#   - "soft" for enforcing the soft limits
+#   - "hard" for enforcing hard limits
+#
+# <item> can be one of the following:
+#   - core - limits the core file size (KB)
+#   - data - max data size (KB)
+#   - fsize - maximum filesize (KB)
+#   - memlock - max locked-in-memory address space (KB)
+#   - nofile - max number of open file descriptors
+#   - rss - max resident set size (KB)
+#   - stack - max stack size (KB)
+#   - cpu - max CPU time (MIN)
+#   - nproc - max number of processes
+#   - as - address space limit (KB)
+#   - maxlogins - max number of logins for this user
+#   - maxsyslogins - max number of logins on the system
+#   - priority - the priority to run user process with
+#   - locks - max number of file locks the user can hold
+#   - sigpending - max number of pending signals
+#   - msgqueue - max memory used by POSIX message queues (bytes)
+#   - nice - max nice priority allowed to raise to values: [-20, 19]
+#   - rtprio - max realtime priority
+################################################################################
+
+################################################################################
+## CIS 1.5.1 - Ensure core dumps are restricted
+################################################################################
+{% if disable_core_dumps | bool %}
+# Disable core dumps for all users
+* hard core 0
+* soft core 0
+{% endif %}
+
+################################################################################
+## File Descriptor Limits (Open Files)
+################################################################################
+
+# Increase file descriptor limits for better performance
+# Especially important for web servers and databases
+* soft nofile 65536
+* hard nofile 65536
+
+# Root user file descriptor limits
+root soft nofile 65536
+root hard nofile 65536
+
+################################################################################
+## Process Limits
+################################################################################
+
+# Maximum number of processes
+* soft nproc 4096
+* hard nproc 8192
+
+# Root process limits
+root soft nproc 8192
+root hard nproc 16384
+
+################################################################################
+## Memory Limits
+################################################################################
+
+# Maximum locked memory (important for security applications)
+* soft memlock unlimited
+* hard memlock unlimited
+
+# Stack size limits (prevent stack overflow attacks)
+* soft stack 8192
+* hard stack 16384
+
+################################################################################
+## Priority Limits
+################################################################################
+
+# Nice priority limits
+* soft nice -10
+* hard nice -20
+
+# Real-time priority
+* soft rtprio 0
+* hard rtprio 0
+
+################################################################################
+## Login Session Limits
+################################################################################
+
+# Maximum number of logins per user
+* hard maxlogins 10
+
+################################################################################
+## Application-Specific Limits
+################################################################################
+
+# NGINX/Web Server specific limits
+{% if 'webservers' in group_names %}
+{{ nginx_user | default('nginx') }} soft nofile 65536
+{{ nginx_user | default('nginx') }} hard nofile 65536
+{{ nginx_user | default('nginx') }} soft nproc 4096
+{{ nginx_user | default('nginx') }} hard nproc 8192
+{% endif %}
+
+# System administrator limits (higher privileges)
+@wheel soft nofile 131072
+@wheel hard nofile 131072
+@wheel soft nproc 8192
+@wheel hard nproc 16384
+
+################################################################################
+## Security Restrictions
+################################################################################
+
+# CPU time limits (prevent runaway processes)
+* soft cpu unlimited
+* hard cpu unlimited
+
+# File size limits
+* soft fsize unlimited
+* hard fsize unlimited
+
+# Data segment limits
+* soft data unlimited
+* hard data unlimited
+
+# Address space limits
+* soft as unlimited
+* hard as unlimited
+
+################################################################################
+## Signal and Message Queue Limits
+################################################################################
+
+# Pending signals
+* soft sigpending 16384
+* hard sigpending 32768
+
+# Message queues
+* soft msgqueue 819200
+* hard msgqueue 819200
+
+################################################################################
+## File Lock Limits
+################################################################################
+
+# Maximum file locks
+* soft locks unlimited
+* hard locks unlimited
+
+################################################################################
+## Additional Custom Limits
+################################################################################
+
+# Add custom application-specific limits below
+# Example:
+# mysql soft nofile 65536
+# mysql hard nofile 65536
+
+################################################################################
+# End of file
+################################################################################
+
+################################################################################
+# END OF FILE: roles/rhel_hardening/templates/limits.conf.j2
+################################################################################

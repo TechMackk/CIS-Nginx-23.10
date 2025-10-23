@@ -1,0 +1,85 @@
+################################################################################
+# File: roles/validation/tasks/openscap_scan.yml
+# Purpose: OpenSCAP compliance scanning
+# Author: DevOps Automation Team
+# Last Updated: October 23, 2025
+################################################################################
+
+---
+# OpenSCAP scanning
+
+- name: "OpenSCAP | Install OpenSCAP packages"
+  package:
+    name: "{{ openscap_packages }}"
+    state: present
+  tags:
+    - openscap
+
+- name: "OpenSCAP | Check if SCAP content exists"
+  stat:
+    path: "{{ openscap_content_path }}"
+  register: scap_content
+  tags:
+    - openscap
+
+- name: "OpenSCAP | Fail if SCAP content not found"
+  fail:
+    msg: "SCAP content not found at {{ openscap_content_path }}"
+  when: not scap_content.stat.exists
+  tags:
+    - openscap
+
+- name: "OpenSCAP | List available profiles"
+  command: oscap info "{{ openscap_content_path }}"
+  register: oscap_profiles
+  changed_when: false
+  tags:
+    - openscap
+
+- name: "OpenSCAP | Display available profiles"
+  debug:
+    msg: "{{ oscap_profiles.stdout_lines }}"
+  tags:
+    - openscap
+
+- name: "OpenSCAP | Run CIS benchmark scan"
+  shell: |
+    oscap xccdf eval \
+      --profile {{ openscap_profile }} \
+      --results {{ openscap_results_dir }}/oscap-results-{{ ansible_date_time.epoch }}.xml \
+      --report {{ openscap_results_dir }}/oscap-report-{{ ansible_date_time.epoch }}.html \
+      {{ openscap_content_path }}
+  register: oscap_scan
+  changed_when: false
+  failed_when: false
+  tags:
+    - openscap
+
+- name: "OpenSCAP | Display scan summary"
+  debug:
+    msg:
+      - "OpenSCAP scan completed"
+      - "Results: {{ openscap_results_dir }}/oscap-results-{{ ansible_date_time.epoch }}.xml"
+      - "Report: {{ openscap_results_dir }}/oscap-report-{{ ansible_date_time.epoch }}.html"
+      - "Exit Code: {{ oscap_scan.rc }}"
+  tags:
+    - openscap
+
+- name: "OpenSCAP | Parse scan results"
+  shell: |
+    oscap xccdf eval --results-arf {{ openscap_results_dir }}/oscap-results-{{ ansible_date_time.epoch }}.xml | grep -E "^(pass|fail|error|notapplicable)" | wc -l
+  register: oscap_summary
+  changed_when: false
+  failed_when: false
+  tags:
+    - openscap
+
+- name: "OpenSCAP | Record OpenSCAP results"
+  set_fact:
+    validation_results: "{{ validation_results | combine({'openscap': {'status': 'COMPLETE', 'exit_code': oscap_scan.rc, 'results_file': openscap_results_dir + '/oscap-results-' + ansible_date_time.epoch + '.xml', 'report_file': openscap_results_dir + '/oscap-report-' + ansible_date_time.epoch + '.html'}}) }}"
+  tags:
+    - openscap
+
+################################################################################
+# END OF FILE: roles/validation/tasks/openscap_scan.yml
+################################################################################

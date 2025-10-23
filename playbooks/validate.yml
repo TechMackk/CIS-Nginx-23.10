@@ -1,0 +1,102 @@
+################################################################################
+# File: playbooks/validate.yml
+# Purpose: Post-hardening compliance validation and reporting
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+#
+# Description:
+#   Validates CIS compliance after hardening:
+#   - OpenSCAP scanning
+#   - Custom compliance checks
+#   - Service status verification
+#   - Configuration validation
+#   - Generate compliance reports
+#
+# Usage:
+#   ansible-playbook -i inventory/dev/hosts.yml playbooks/validate.yml
+################################################################################
+
+---
+- name: "Validate: CIS Compliance and Security Posture"
+  hosts: all
+  gather_facts: true
+  become: true
+  
+  vars:
+    validation_timestamp: "{{ ansible_date_time.iso8601 }}"
+    validation_report_file: "validation-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.json"
+
+  tags:
+    - validate
+    - compliance
+    - audit
+
+  pre_tasks:
+    - name: "Display validation banner"
+      debug:
+        msg:
+          - "=========================================="
+          - "Validate: CIS Compliance Check"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "Environment: {{ environment_name | default('undefined') }}"
+          - "CIS Level: {{ cis_level | default(1) }}"
+          - "Timestamp: {{ validation_timestamp }}"
+          - "=========================================="
+
+  tasks:
+    - name: "Execute validation role"
+      include_role:
+        name: validation
+      tags:
+        - validation
+
+  post_tasks:
+    - name: "Display validation completion"
+      debug:
+        msg:
+          - "=========================================="
+          - "Validation Status: COMPLETE"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "Report: {{ validation_report_file }}"
+          - "Completion Time: {{ ansible_date_time.iso8601 }}"
+          - "=========================================="
+
+    - name: "Fetch validation report"
+      fetch:
+        src: "/tmp/{{ validation_report_file }}"
+        dest: "reports/{{ validation_report_file }}"
+        flat: yes
+      ignore_errors: yes
+
+    - name: "Display validation summary"
+      debug:
+        msg:
+          - "=========================================="
+          - "Validation Summary"
+          - "=========================================="
+          - "Full compliance report saved to:"
+          - "  reports/{{ validation_report_file }}"
+          - "Review report for detailed findings"
+          - "=========================================="
+
+  rescue:
+    - name: "Validation failed"
+      debug:
+        msg:
+          - "=========================================="
+          - "Validation Status: FAILED"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "Validation checks encountered errors"
+          - "Review logs for details"
+          - "=========================================="
+
+    - name: "Continue despite validation failure"
+      debug:
+        msg: "Validation failure does not halt execution. Review results."
+
+################################################################################
+# END OF FILE: playbooks/validate.yml
+################################################################################

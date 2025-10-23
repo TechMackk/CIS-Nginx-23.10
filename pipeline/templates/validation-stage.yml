@@ -1,0 +1,88 @@
+################################################################################
+# File: pipeline/templates/validation-stage.yml
+# Purpose: Validation stage template for ADO pipeline
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+parameters:
+  - name: environment
+    type: string
+  - name: inventory
+    type: string
+  - name: generateComplianceReport
+    type: boolean
+    default: false
+
+jobs:
+  - job: ValidationJob
+    displayName: 'Validation - ${{ parameters.environment }}'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+      - task: UsePythonVersion@0
+        inputs:
+          versionSpec: '3.9'
+        displayName: 'Setup Python'
+
+      - script: |
+          pip install ansible
+          ansible-galaxy collection install -r requirements.yml
+        displayName: 'Install Ansible'
+
+      - task: DownloadSecureFile@1
+        name: vaultPassword
+        inputs:
+          secureFile: 'ansible-vault-password-${{ parameters.environment }}'
+        displayName: 'Download Vault Password'
+
+      - task: DownloadSecureFile@1
+        name: sshKey
+        inputs:
+          secureFile: 'ansible-ssh-key-${{ parameters.environment }}'
+        displayName: 'Download SSH Key'
+
+      - script: |
+          mkdir -p ~/.ssh
+          cp $(sshKey.secureFilePath) ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+        displayName: 'Setup SSH Key'
+
+      - script: |
+          ansible-playbook -i ${{ parameters.inventory }} \
+            playbooks/validate.yml \
+            --vault-password-file=$(vaultPassword.secureFilePath) \
+            -vv
+        displayName: 'Execute Validation Playbook'
+
+      - task: PublishPipelineArtifact@1
+        inputs:
+          targetPath: 'reports'
+          artifact: 'validation-reports-${{ parameters.environment }}'
+        displayName: 'Publish Validation Reports'
+
+      - ${{ if eq(parameters.generateComplianceReport, true) }}:
+        - script: |
+            python3 scripts/report_generator.py \
+              --input reports/validation-*.json \
+              --output compliance-report-${{ parameters.environment }}.pdf
+          displayName: 'Generate Compliance Report'
+
+        - task: PublishPipelineArtifact@1
+          inputs:
+            targetPath: 'compliance-report-${{ parameters.environment }}.pdf'
+            artifact: 'compliance-report-${{ parameters.environment }}'
+          displayName: 'Publish Compliance Report'
+
+      - task: PublishTestResults@2
+        condition: always()
+        inputs:
+          testResultsFormat: 'JUnit'
+          testResultsFiles: 'reports/**/validation-results.xml'
+          failTaskOnFailedTests: false
+        displayName: 'Publish Validation Results'
+
+################################################################################
+# END OF FILE: pipeline/templates/validation-stage.yml
+################################################################################

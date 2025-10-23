@@ -1,0 +1,103 @@
+################################################################################
+# File: .ansible-lint
+# Purpose: Ansible linting rules for code quality and best practices
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+# Documentation: https://ansible-lint.readthedocs.io/
+################################################################################
+
+---
+# Ansible-lint configuration
+
+# Exclude paths from linting
+exclude_paths:
+  - .cache/
+  - .github/
+  - tests/output/
+  - molecule/
+  - .tox/
+  - venv/
+  - env/
+
+# Enable offline mode (no internet required for rule checks)
+offline: false
+
+# Use default rule set
+use_default_rules: true
+
+# Skip specific rules (customize based on team preferences)
+skip_list:
+  - '106'  # Role name does not match ^[a-z][a-z0-9_]+$ pattern (legacy roles)
+  - '204'  # Lines should be no longer than 160 chars (allow longer for readability)
+  - '301'  # Commands should not change things if nothing needs doing (idempotency check - manual review)
+  - '305'  # Use shell only when shell functionality is required (sometimes needed for complex commands)
+  - '503'  # Tasks that run when changed should likely be handlers (design choice)
+
+# Warn-only rules (don't fail, just warn)
+warn_list:
+  - '208'  # File permissions unset or incorrect
+  - '302'  # Using command rather than an argument to e.g. file
+  - '303'  # Using command rather than module
+  - '601'  # Don't compare to literal True/False
+  - '602'  # Don't compare to empty string
+
+# Enable progressive mode (stricter rules)
+progressive: false
+
+# Parseable output (useful for CI/CD integration)
+parseable: false
+
+# Quiet mode (only show failures)
+quiet: false
+
+# Verbosity level (0-3)
+verbosity: 1
+
+# Enable colored output
+colored: true
+
+# Set YAML rules (follows yamllint standards)
+yamllint_config_file: .yamllint.yml
+
+# Treat warnings as errors (set to true for strict enforcement)
+strict: false
+
+# Tags to run (empty = all tags)
+tags: []
+
+# Tags to skip
+skip_tags: []
+
+# Mock modules for testing
+mock_modules: []
+
+# Mock roles for testing
+mock_roles: []
+
+# Enable rules
+enable_list:
+  - 'no-changed-when'        # Commands should have changed_when
+  - 'no-handler'             # Tasks should trigger handlers when needed
+  - 'no-jinja-when'          # Don't use Jinja2 in when conditions
+  - 'no-log-password'        # Passwords should use no_log
+  - 'no-relative-paths'      # Use absolute paths
+  - 'no-same-owner'          # owner/group should not be set to current user
+  - 'no-tabs'                # Use spaces, not tabs
+  - 'package-latest'         # Package managers should not use state=latest
+  - 'risky-file-permissions' # File permissions should be explicit
+  - 'risky-shell-pipe'       # Shell pipes should be avoided
+  - 'yaml'                   # YAML syntax validation
+
+# Custom rules directory (if you have custom lint rules)
+# rulesdir:
+#   - custom_rules/
+
+# Task name prefix (enforce naming conventions)
+# task_name_prefix: '[{type}] '
+
+# Minimum Ansible version required
+ansible_version: '2.9'
+
+################################################################################
+# END OF FILE: .ansible-lint
+################################################################################

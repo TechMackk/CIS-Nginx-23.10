@@ -1,0 +1,52 @@
+################################################################################
+# File: pipeline/variables/prod-vars.yml
+# Purpose: Production environment pipeline variables
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+variables:
+  # Environment identification
+  ENVIRONMENT_NAME: 'production'
+  ENVIRONMENT_SHORT: 'prod'
+  
+  # Inventory
+  INVENTORY_PATH: 'inventory/production/hosts.yml'
+  
+  # Approval requirements
+  REQUIRE_MANUAL_APPROVAL: true
+  CHANGE_MANAGEMENT_REQUIRED: true
+  
+  # CIS hardening level
+  CIS_LEVEL: 2
+  STRICT_CIS_MODE: true
+  
+  # Backup settings
+  BACKUP_RETENTION_DAYS: 90
+  BACKUP_OFFSITE_ENABLED: true
+  
+  # Execution strategy
+  BATCH_EXECUTION: true
+  BATCH_SIZE: 2
+  CANARY_DEPLOYMENT: true
+  
+  # Notification
+  NOTIFY_ON_FAILURE: true
+  NOTIFY_ON_SUCCESS: true
+  ESCALATE_ON_FAILURE: true
+  
+  # Validation
+  RUN_OPENSCAP_SCAN: true
+  GENERATE_COMPLIANCE_REPORT: true
+  COMPLIANCE_REPORT_FORMAT: 'PDF'
+  
+  # Monitoring
+  ENABLE_HEALTH_CHECKS: true
+  HEALTH_CHECK_INTERVAL: 60
+  
+  # Rollback
+  AUTO_ROLLBACK_ON_FAILURE: false
+
+################################################################################
+# END OF FILE: pipeline/variables/prod-vars.yml
+################################################################################

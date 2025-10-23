@@ -1,0 +1,157 @@
+################################################################################
+# File: roles/nginx/defaults/main.yml
+# Purpose: Default variables for NGINX role
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# NGINX installation
+nginx_version: "1.20"
+nginx_repo_url: "https://nginx.org/packages/rhel/$releasever/$basearch/"
+nginx_install_method: "package"  # package or source
+nginx_package_name: "nginx"
+
+# NGINX user and group
+nginx_user: "nginx"
+nginx_group: "nginx"
+
+# NGINX directories
+nginx_config_dir: "/etc/nginx"
+nginx_config_file: "{{ nginx_config_dir }}/nginx.conf"
+nginx_log_dir: "/var/log/nginx"
+nginx_cache_dir: "/var/cache/nginx"
+nginx_lib_dir: "/var/lib/nginx"
+nginx_run_dir: "/var/run"
+nginx_pid_file: "{{ nginx_run_dir }}/nginx.pid"
+
+# NGINX service
+nginx_service_name: "nginx"
+nginx_service_enabled: true
+nginx_service_state: "started"
+
+# NGINX worker configuration
+nginx_worker_processes: "auto"
+nginx_worker_connections: 1024
+nginx_worker_rlimit_nofile: 65535
+nginx_multi_accept: "on"
+nginx_use_epoll: true
+
+# NGINX event model
+nginx_events_use: "epoll"
+
+# NGINX performance tuning
+nginx_keepalive_timeout: 65
+nginx_keepalive_requests: 100
+nginx_sendfile: "on"
+nginx_tcp_nopush: "on"
+nginx_tcp_nodelay: "on"
+nginx_reset_timedout_connection: "on"
+
+# Client settings
+nginx_client_max_body_size: "10m"
+nginx_client_body_buffer_size: "128k"
+nginx_client_body_timeout: 60
+nginx_client_header_timeout: 60
+nginx_client_header_buffer_size: "1k"
+nginx_large_client_header_buffers: "4 8k"
+
+# Send timeout
+nginx_send_timeout: 60
+
+# NGINX logging
+nginx_access_log_enabled: true
+nginx_access_log_path: "{{ nginx_log_dir }}/access.log"
+nginx_access_log_format: "combined"
+nginx_error_log_path: "{{ nginx_log_dir }}/error.log"
+nginx_error_log_level: "warn"  # debug, info, notice, warn, error, crit, alert, emerg
+nginx_log_not_found: "off"
+
+# Gzip compression
+nginx_gzip_enabled: true
+nginx_gzip_comp_level: 6
+nginx_gzip_min_length: 256
+nginx_gzip_types:
+  - text/plain
+  - text/css
+  - text/xml
+  - text/javascript
+  - application/json
+  - application/javascript
+  - application/xml+rss
+  - application/rss+xml
+  - application/atom+xml
+  - image/svg+xml
+
+# Security headers
+nginx_security_headers:
+  X-Frame-Options: "SAMEORIGIN"
+  X-Content-Type-Options: "nosniff"
+  X-XSS-Protection: "1; mode=block"
+  Referrer-Policy: "strict-origin-when-cross-origin"
+  Content-Security-Policy: "default-src 'self'"
+
+# Hide NGINX version (CIS hardening)
+nginx_hide_version: true
+nginx_server_tokens: "off"
+
+# Rate limiting
+rate_limiting_enabled: false
+rate_limit_zone: "general"
+rate_limit_zone_size: "10m"
+rate_limit_requests: 100
+rate_limit_burst: 200
+rate_limit_nodelay: false
+
+# DDoS protection
+connection_limit_enabled: false
+connection_limit_zone: "conn_limit"
+connection_limit_zone_size: "10m"
+connection_limit_per_ip: 10
+
+# Buffer overflow protection
+nginx_client_body_buffer_overflow_protection: true
+
+# Virtual hosts
+nginx_vhosts: []
+# Example:
+# - server_name: "example.com"
+#   listen_port: 80
+#   listen_ssl_port: 443
+#   root: "/var/www/html"
+#   index: "index.html index.htm"
+#   ssl_enabled: true
+
+# Default server
+nginx_default_server_enabled: true
+nginx_default_server_root: "/usr/share/nginx/html"
+
+# SSL/TLS (basic settings, detailed config in ssl_tls role)
+ssl_enabled: true
+ssl_protocols: "TLSv1.2 TLSv1.3"
+ssl_prefer_server_ciphers: "on"
+
+# NGINX status endpoint (for monitoring)
+nginx_status_enabled: false
+nginx_status_port: 8080
+nginx_status_path: "/nginx_status"
+nginx_status_allowed_ips:
+  - 127.0.0.1
+  - "{{ ansible_default_ipv4.address | default('127.0.0.1') }}"
+
+# Proxy settings (if used as reverse proxy)
+nginx_proxy_enabled: false
+nginx_proxy_cache_path: "{{ nginx_cache_dir }}/proxy"
+nginx_proxy_cache_levels: "1:2"
+nginx_proxy_cache_keys_zone: "proxy_cache:10m"
+nginx_proxy_cache_max_size: "1g"
+
+# FastCGI settings (if using PHP-FPM)
+nginx_fastcgi_enabled: false
+
+# ModSecurity WAF
+modsecurity_enabled: false
+
+################################################################################
+# END OF FILE: roles/nginx/defaults/main.yml
+################################################################################

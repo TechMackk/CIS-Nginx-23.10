@@ -1,0 +1,76 @@
+################################################################################
+# File: roles/backup/defaults/main.yml
+# Purpose: Default variables for backup role
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Backup behavior
+backup_enabled: true
+backup_fail_on_error: true
+
+# Backup destination
+backup_root_dir: "/backup"
+backup_timestamp: "{{ ansible_date_time.epoch }}"
+backup_destination: "{{ backup_root_dir }}/{{ backup_timestamp }}"
+
+# Backup retention
+backup_retention_days: 30
+backup_cleanup_enabled: true
+
+# Backup options
+backup_compress: true
+backup_compression_format: "gz"  # gz, bz2, xz
+backup_verify: true
+backup_create_manifest: true
+
+# System configuration paths to backup
+backup_system_configs:
+  - /etc/ssh
+  - /etc/sysctl.conf
+  - /etc/sysctl.d
+  - /etc/security
+  - /etc/pam.d
+  - /etc/audit
+  - /etc/audit/rules.d
+  - /etc/selinux
+  - /etc/login.defs
+  - /etc/profile
+  - /etc/profile.d
+  - /etc/bashrc
+  - /etc/csh.cshrc
+  - /etc/hosts.allow
+  - /etc/hosts.deny
+  - /etc/issue
+  - /etc/issue.net
+  - /etc/motd
+  - /etc/rsyslog.conf
+  - /etc/rsyslog.d
+  - /etc/systemd
+  - /etc/modprobe.d
+  - /etc/cron.allow
+  - /etc/cron.deny
+  - /etc/at.allow
+  - /etc/at.deny
+
+# NGINX configuration paths
+backup_nginx_configs:
+  - /etc/nginx/nginx.conf
+  - /etc/nginx/conf.d
+  - /etc/nginx/sites-available
+  - /etc/nginx/sites-enabled
+  - /etc/nginx/ssl
+
+# Firewall configuration paths
+backup_firewall_configs:
+  - /etc/firewalld
+  - /etc/sysconfig/iptables
+  - /etc/sysconfig/ip6tables
+
+# Backup manifest template
+backup_manifest_path: "{{ backup_destination }}/backup_manifest.txt"
+
+################################################################################
+# END OF FILE: roles/backup/defaults/main.yml
+################################################################################

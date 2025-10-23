@@ -1,0 +1,141 @@
+################################################################################
+# File: roles/backup/tasks/backup_nginx.yml
+# Purpose: Backup NGINX configuration files
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# NGINX configuration backup tasks
+
+- name: "Backup NGINX | Check if NGINX is installed"
+  stat:
+    path: /etc/nginx/nginx.conf
+  register: nginx_installed
+  tags:
+    - backup_nginx
+
+- name: "Backup NGINX | Skip if NGINX not installed"
+  debug:
+    msg: "NGINX not installed. Skipping NGINX backup."
+  when: not nginx_installed.stat.exists
+  tags:
+    - backup_nginx
+
+- name: "Backup NGINX | Create NGINX backup directory"
+  file:
+    path: "{{ backup_destination }}/nginx_configs"
+    state: directory
+    mode: '0700'
+  when: nginx_installed.stat.exists
+  tags:
+    - backup_nginx
+
+- name: "Backup NGINX | Check which NGINX paths exist"
+  stat:
+    path: "{{ item }}"
+  loop: "{{ backup_nginx_configs }}"
+  register: nginx_paths_check
+  when: nginx_installed.stat.exists
+  tags:
+    - backup_nginx
+
+- name: "Backup NGINX | Backup NGINX configuration files"
+  copy:
+    src: "{{ item.item }}"
+    dest: "{{ backup_destination }}/nginx_configs/"
+    remote_src: yes
+    mode: preserve
+  loop: "{{ nginx_paths_check.results }}"
+  when:
+    - nginx_installed.stat.exists
+    - item.stat is defined
+    - item.stat.exists
+  ignore_errors: yes
+  tags:
+    - backup_nginx
+
+- name: "Backup NGINX | Test NGINX configuration before backup"
+  command: nginx -t
+  register: nginx_config_test
+  changed_when: false
+  failed_when: false
+  when: nginx_installed.stat.exists
+  tags:
+    - backup_nginx
+
+- name: "Backup NGINX | Save NGINX config test results"
+  copy:
+    content: |
+      NGINX Configuration Test Results
+      Timestamp: {{ ansible_date_time.iso8601 }}
+      Return Code: {{ nginx_config_test.rc }}
+      
+      STDOUT:
+      {{ nginx_config_test.stdout }}
+      
+      STDERR:
+      {{ nginx_config_test.stderr }}
+    dest: "{{ backup_destination }}/nginx_config_test.txt"
+  when: nginx_installed.stat.exists
+  tags:
+    - backup_nginx
+
+- name: "Backup NGINX | Get NGINX version"
+  command: nginx -v
+  register: nginx_version_output
+  changed_when: false
+  failed_when: false
+  when: nginx_installed.stat.exists
+  tags:
+    - backup_nginx
+
+- name: "Backup NGINX | Save NGINX version info"
+  copy:
+    content: |
+      NGINX Version Information
+      {{ nginx_version_output.stderr }}
+    dest: "{{ backup_destination }}/nginx_version.txt"
+  when: nginx_installed.stat.exists
+  tags:
+    - backup_nginx
+
+- name: "Backup NGINX | Backup NGINX log files list"
+  shell: ls -lh /var/log/nginx/ > {{ backup_destination }}/nginx_logs_list.txt
+  when: nginx_installed.stat.exists
+  ignore_errors: yes
+  tags:
+    - backup_nginx
+
+- name: "Backup NGINX | Create compressed archive of NGINX configs"
+  archive:
+    path: "{{ backup_destination }}/nginx_configs"
+    dest: "{{ backup_destination }}/nginx_configs.tar.{{ backup_compression_format }}"
+    format: "{{ 'gz' if backup_compression_format == 'gz' else 'bz2' if backup_compression_format == 'bz2' else 'xz' }}"
+    remove: yes
+  when:
+    - nginx_installed.stat.exists
+    - backup_compress | bool
+  tags:
+    - backup_nginx
+
+- name: "Backup NGINX | Verify NGINX backup archive"
+  stat:
+    path: "{{ backup_destination }}/nginx_configs.tar.{{ backup_compression_format }}"
+  register: nginx_backup_archive
+  when:
+    - nginx_installed.stat.exists
+    - backup_compress | bool
+  tags:
+    - backup_nginx
+
+- name: "Backup NGINX | Display NGINX backup completion"
+  debug:
+    msg: "NGINX configuration backup completed: {{ (nginx_backup_archive.stat.size / 1024 / 1024) | round(2) if nginx_backup_archive.stat is defined and nginx_backup_archive.stat.exists else 0 }} MB"
+  when: nginx_installed.stat.exists
+  tags:
+    - backup_nginx
+
+################################################################################
+# END OF FILE: roles/backup/tasks/backup_nginx.yml
+################################################################################

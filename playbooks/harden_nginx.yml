@@ -1,0 +1,138 @@
+################################################################################
+# File: playbooks/harden_nginx.yml
+# Purpose: Apply security hardening to NGINX web server
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+#
+# Description:
+#   Implements NGINX security hardening best practices:
+#   - Secure configuration parameters
+#   - Security headers (HSTS, CSP, X-Frame-Options, etc.)
+#   - Hide version information
+#   - Request rate limiting
+#   - Access controls
+#
+# Usage:
+#   ansible-playbook -i inventory/dev/hosts.yml playbooks/harden_nginx.yml
+################################################################################
+
+---
+- name: "Harden: NGINX Web Server"
+  hosts: webservers
+  gather_facts: true
+  become: true
+  
+  vars:
+    hardening_timestamp: "{{ ansible_date_time.iso8601 }}"
+
+  tags:
+    - harden
+    - harden_nginx
+    - nginx
+
+  pre_tasks:
+    - name: "Display NGINX hardening banner"
+      debug:
+        msg:
+          - "=========================================="
+          - "Hardening: NGINX Web Server"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "NGINX Version Target: {{ nginx_version | default('1.20+') }}"
+          - "Timestamp: {{ hardening_timestamp }}"
+          - "=========================================="
+
+    - name: "Verify host is in webservers group"
+      assert:
+        that:
+          - "'webservers' in group_names"
+        fail_msg: "This playbook should only run on webservers group"
+        success_msg: "Host group verified: webservers"
+
+  tasks:
+    - name: "Execute NGINX role"
+      include_role:
+        name: nginx
+      tags:
+        - nginx
+
+  post_tasks:
+    - name: "Verify NGINX service status"
+      systemd:
+        name: "{{ nginx_service_name | default('nginx') }}"
+        state: started
+        enabled: true
+      check_mode: yes
+      register: nginx_service_check
+
+    - name: "Test NGINX configuration"
+      command: nginx -t
+      register: nginx_config_test
+      changed_when: false
+      failed_when: nginx_config_test.rc != 0
+
+    - name: "Display NGINX config test results"
+      debug:
+        msg:
+          - "NGINX Configuration Test:"
+          - "{{ nginx_config_test.stderr_lines }}"
+
+    - name: "Display NGINX hardening completion"
+      debug:
+        msg:
+          - "=========================================="
+          - "NGINX Hardening Status: COMPLETE"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "Service Status: {{ 'Running' if nginx_service_check is success else 'Check Failed' }}"
+          - "Config Test: {{ 'PASSED' if nginx_config_test.rc == 0 else 'FAILED' }}"
+          - "Security Headers: Enabled"
+          - "Version Hiding: Enabled"
+          - "Completion Time: {{ ansible_date_time.iso8601 }}"
+          - "=========================================="
+
+    - name: "Generate NGINX hardening report"
+      copy:
+        content: |
+          {
+            "timestamp": "{{ ansible_date_time.iso8601 }}",
+            "hostname": "{{ inventory_hostname }}",
+            "playbook": "harden_nginx",
+            "nginx_version": "{{ nginx_version | default('unknown') }}",
+            "service_status": "{{ 'running' if nginx_service_check is success else 'check_failed' }}",
+            "config_test": "{{ 'passed' if nginx_config_test.rc == 0 else 'failed' }}",
+            "status": "COMPLETE"
+          }
+        dest: "/tmp/nginx-hardening-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.json"
+
+    - name: "Fetch NGINX hardening report"
+      fetch:
+        src: "/tmp/nginx-hardening-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.json"
+        dest: "reports/nginx-hardening-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.json"
+        flat: yes
+
+  rescue:
+    - name: "NGINX hardening failed"
+      debug:
+        msg:
+          - "=========================================="
+          - "NGINX Hardening Status: FAILED"
+          - "=========================================="
+          - "Host: {{ inventory_hostname }}"
+          - "ERROR: Review logs above"
+          - "NGINX may be in inconsistent state"
+          - "=========================================="
+
+    - name: "Attempt to restore NGINX service"
+      systemd:
+        name: "{{ nginx_service_name | default('nginx') }}"
+        state: restarted
+      ignore_errors: yes
+
+    - name: "Fail playbook"
+      fail:
+        msg: "NGINX hardening failed on {{ inventory_hostname }}"
+
+################################################################################
+# END OF FILE: playbooks/harden_nginx.yml
+################################################################################

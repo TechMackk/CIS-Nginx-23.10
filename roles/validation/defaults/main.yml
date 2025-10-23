@@ -1,0 +1,76 @@
+################################################################################
+# File: roles/validation/defaults/main.yml
+# Purpose: Default variables for validation role
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Validation behavior
+validation_enabled: true
+validation_fail_on_error: false
+
+# OpenSCAP configuration
+openscap_enabled: true
+openscap_profile: "xccdf_org.ssgproject.content_profile_cis"
+openscap_content_path: "/usr/share/xml/scap/ssg/content/ssg-rhel{{ ansible_distribution_major_version }}-ds.xml"
+openscap_results_dir: "/tmp/openscap-results"
+openscap_report_format: "html"  # html, xml, json
+
+# Custom checks
+custom_checks_enabled: true
+
+# Validation report settings
+validation_report_dir: "/tmp/validation-reports"
+validation_report_file: "validation-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.json"
+validation_html_report: "validation-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.html"
+
+# Checks to perform
+validate_rhel_hardening: true
+validate_nginx_config: true
+validate_ssl_tls: true
+validate_firewall: true
+validate_services: true
+validate_file_permissions: true
+
+# Service validation
+required_services:
+  - sshd
+  - firewalld
+  - auditd
+  - rsyslog
+
+# NGINX validation (if webserver)
+nginx_required_headers:
+  - X-Frame-Options
+  - X-Content-Type-Options
+  - X-XSS-Protection
+  - Strict-Transport-Security
+
+# SSL/TLS validation
+ssl_min_protocol: "TLSv1.2"
+ssl_required_ciphers:
+  - "ECDHE-ECDSA-AES128-GCM-SHA256"
+  - "ECDHE-RSA-AES128-GCM-SHA256"
+
+# File permission checks
+critical_files_to_check:
+  - path: "/etc/passwd"
+    expected_mode: "0644"
+  - path: "/etc/shadow"
+    expected_mode: "0000"
+  - path: "/etc/group"
+    expected_mode: "0644"
+  - path: "/etc/gshadow"
+    expected_mode: "0000"
+
+# Compliance scoring
+compliance_pass_threshold: 80  # percentage
+
+# Archive reports
+archive_reports: true
+report_archive_dir: "/var/log/compliance-reports"
+
+################################################################################
+# END OF FILE: roles/validation/defaults/main.yml
+################################################################################

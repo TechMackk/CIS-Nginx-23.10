@@ -1,0 +1,73 @@
+################################################################################
+# File: roles/precheck/defaults/main.yml
+# Purpose: Default variables for precheck role
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Precheck behavior
+precheck_fail_on_error: true
+precheck_fail_on_warning: false
+precheck_verbose: true
+
+# Minimum system requirements
+precheck_min_memory_mb: 2048
+precheck_min_disk_gb: 10
+precheck_min_cpu_cores: 2
+
+# OS compatibility
+precheck_supported_os:
+  - RedHat
+  - CentOS
+  - Rocky
+  - AlmaLinux
+
+precheck_supported_versions:
+  - "8"
+  - "9"
+
+# Required packages for hardening
+precheck_required_packages:
+  - openssh-server
+  - firewalld
+  - audit
+  - aide
+  - openscap-scanner
+  - scap-security-guide
+
+# Optional packages (warnings only)
+precheck_optional_packages:
+  - policycoreutils-python-utils
+  - setools-console
+  - setroubleshoot-server
+
+# Network connectivity checks
+precheck_check_internet: true
+precheck_test_urls:
+  - https://www.google.com
+  - https://www.redhat.com
+
+# Repository checks
+precheck_verify_repos: true
+
+# Service checks
+precheck_required_services:
+  - sshd
+  - firewalld
+
+# Disk mount points to check
+precheck_disk_mounts_to_check:
+  - /
+  - /var
+  - /tmp
+
+# SELinux check
+precheck_verify_selinux: true
+
+# Time synchronization check
+precheck_verify_time_sync: true
+
+################################################################################
+# END OF FILE: roles/precheck/defaults/main.yml
+################################################################################

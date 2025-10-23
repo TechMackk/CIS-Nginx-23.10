@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+################################################################################
+# File: roles/validation/files/openscap_profile.xml
+# Purpose: Custom OpenSCAP profile configuration
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+<!--
+Custom OpenSCAP Profile for CIS RHEL 8/9 Benchmark
+This is a reference file - actual profiles are in scap-security-guide package
+-->
+
+<Profile id="xccdf_custom_profile_cis_level1">
+  <title>CIS RHEL Level 1 - Custom Profile</title>
+  <description>
+    Custom OpenSCAP profile based on CIS RHEL 8/9 Benchmark Level 1
+    Tailored for organization-specific requirements
+  </description>
+  
+  <!-- Include CIS Level 1 rules -->
+  <select idref="xccdf_org.ssgproject.content_rule_selinux_state" selected="true"/>
+  <select idref="xccdf_org.ssgproject.content_rule_service_auditd_enabled" selected="true"/>
+  <select idref="xccdf_org.ssgproject.content_rule_disable_ctrlaltdel_reboot" selected="true"/>
+  <select idref="xccdf_org.ssgproject.content_rule_firewalld_sshd_port_enabled" selected="true"/>
+  
+  <!-- Add organization-specific rules -->
+  <!-- Customize as needed -->
+  
+</Profile>
+
+################################################################################
+# END OF FILE: roles/validation/files/openscap_profile.xml
+################################################################################

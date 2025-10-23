@@ -1,0 +1,111 @@
+################################################################################
+# File: roles/validation/tasks/validate_rhel.yml
+# Purpose: RHEL hardening validation checks
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# RHEL hardening validation
+
+- name: "Validate RHEL | Check SELinux status"
+  command: getenforce
+  register: selinux_status
+  changed_when: false
+  failed_when: false
+  tags:
+    - validate_rhel
+
+- name: "Validate RHEL | Record SELinux check"
+  set_fact:
+    validation_results: "{{ validation_results | combine({'checks': validation_results.checks + [{'name': 'SELinux Enforcing', 'status': 'PASS' if selinux_status.stdout == 'Enforcing' else 'FAIL', 'value': selinux_status.stdout}]}) }}"
+    validation_results: "{{ validation_results | combine({'total_checks': validation_results.total_checks + 1, 'passed': validation_results.passed + 1 if selinux_status.stdout == 'Enforcing' else validation_results.passed, 'failed': validation_results.failed + 1 if selinux_status.stdout != 'Enforcing' else validation_results.failed}) }}"
+  tags:
+    - validate_rhel
+
+- name: "Validate RHEL | Check auditd service"
+  systemd:
+    name: auditd
+  register: auditd_status
+  changed_when: false
+  failed_when: false
+  tags:
+    - validate_rhel
+
+- name: "Validate RHEL | Record auditd check"
+  set_fact:
+    validation_results: "{{ validation_results | combine({'checks': validation_results.checks + [{'name': 'Auditd Running', 'status': 'PASS' if auditd_status.status.ActiveState == 'active' else 'FAIL', 'value': auditd_status.status.ActiveState}]}) }}"
+    validation_results: "{{ validation_results | combine({'total_checks': validation_results.total_checks + 1, 'passed': validation_results.passed + 1 if auditd_status.status.ActiveState == 'active' else validation_results.passed, 'failed': validation_results.failed + 1 if auditd_status.status.ActiveState != 'active' else validation_results.failed}) }}"
+  tags:
+    - validate_rhel
+
+- name: "Validate RHEL | Check SSH configuration"
+  shell: |
+    grep "^PermitRootLogin no" /etc/ssh/sshd_config
+  register: ssh_root_login
+  changed_when: false
+  failed_when: false
+  tags:
+    - validate_rhel
+
+- name: "Validate RHEL | Record SSH root login check"
+  set_fact:
+    validation_results: "{{ validation_results | combine({'checks': validation_results.checks + [{'name': 'SSH Root Login Disabled', 'status': 'PASS' if ssh_root_login.rc == 0 else 'FAIL', 'value': 'Disabled' if ssh_root_login.rc == 0 else 'Enabled'}]}) }}"
+    validation_results: "{{ validation_results | combine({'total_checks': validation_results.total_checks + 1, 'passed': validation_results.passed + 1 if ssh_root_login.rc == 0 else validation_results.passed, 'failed': validation_results.failed + 1 if ssh_root_login.rc != 0 else validation_results.failed}) }}"
+  tags:
+    - validate_rhel
+
+- name: "Validate RHEL | Check core dumps disabled"
+  shell: |
+    sysctl fs.suid_dumpable | awk '{print $3}'
+  register: core_dumps
+  changed_when: false
+  tags:
+    - validate_rhel
+
+- name: "Validate RHEL | Record core dumps check"
+  set_fact:
+    validation_results: "{{ validation_results | combine({'checks': validation_results.checks + [{'name': 'Core Dumps Disabled', 'status': 'PASS' if core_dumps.stdout == '0' else 'FAIL', 'value': core_dumps.stdout}]}) }}"
+    validation_results: "{{ validation_results | combine({'total_checks': validation_results.total_checks + 1, 'passed': validation_results.passed + 1 if core_dumps.stdout == '0' else validation_results.passed, 'failed': validation_results.failed + 1 if core_dumps.stdout != '0' else validation_results.failed}) }}"
+  tags:
+    - validate_rhel
+
+- name: "Validate RHEL | Check file permissions"
+  stat:
+    path: "{{ item.path }}"
+  register: file_perms
+  loop: "{{ critical_files_to_check }}"
+  tags:
+    - validate_rhel
+
+- name: "Validate RHEL | Record file permission checks"
+  set_fact:
+    validation_results: "{{ validation_results | combine({'checks': validation_results.checks + [{'name': 'File Permissions ' + item.item.path, 'status': 'PASS' if item.stat.mode == item.item.expected_mode else 'FAIL', 'value': item.stat.mode}]}) }}"
+    validation_results: "{{ validation_results | combine({'total_checks': validation_results.total_checks + 1, 'passed': validation_results.passed + 1 if item.stat.mode == item.item.expected_mode else validation_results.passed, 'failed': validation_results.failed + 1 if item.stat.mode != item.item.expected_mode else validation_results.failed}) }}"
+  loop: "{{ file_perms.results }}"
+  tags:
+    - validate_rhel
+
+- name: "Validate RHEL | Check kernel parameters"
+  shell: |
+    sysctl {{ item.key }} | awk '{print $3}'
+  register: kernel_params
+  changed_when: false
+  loop:
+    - { key: 'net.ipv4.ip_forward', expected: '0' }
+    - { key: 'net.ipv4.conf.all.send_redirects', expected: '0' }
+    - { key: 'net.ipv4.tcp_syncookies', expected: '1' }
+  tags:
+    - validate_rhel
+
+- name: "Validate RHEL | Record kernel parameter checks"
+  set_fact:
+    validation_results: "{{ validation_results | combine({'checks': validation_results.checks + [{'name': 'Kernel Param ' + item.item.key, 'status': 'PASS' if item.stdout == item.item.expected else 'FAIL', 'value': item.stdout}]}) }}"
+    validation_results: "{{ validation_results | combine({'total_checks': validation_results.total_checks + 1, 'passed': validation_results.passed + 1 if item.stdout == item.item.expected else validation_results.passed, 'failed': validation_results.failed + 1 if item.stdout != item.item.expected else validation_results.failed}) }}"
+  loop: "{{ kernel_params.results }}"
+  tags:
+    - validate_rhel
+
+################################################################################
+# END OF FILE: roles/validation/tasks/validate_rhel.yml
+################################################################################

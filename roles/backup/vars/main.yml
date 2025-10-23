@@ -1,0 +1,17 @@
+################################################################################
+# File: roles/backup/vars/main.yml
+# Purpose: Role-specific variables (higher precedence)
+# Author: DevOps Automation Team
+# Last Updated: October 22, 2025
+################################################################################
+
+---
+# Internal backup tracking variables
+backup_status: "running"
+backup_files_count: 0
+backup_total_size: 0
+backup_errors: []
+
+################################################################################
+# END OF FILE: roles/backup/vars/main.yml
+################################################################################
